@@ -3,6 +3,7 @@
 Dumb idea since Dropbox has a Python API but I wanted to roll out sth simple
 since the project needs only a small subset of its features.
 '''
+from datetime import datetime as dt
 import dataclasses as dcls
 import io
 import json
@@ -24,7 +25,7 @@ class Api:
 
   def url(self, *path: str):
     url = self.base.format('/'.join(path))
-    L.info('Construct %s', url)
+    L.debug('Construct %s', url)
     return url
 
   def get(self, *path: str):
@@ -62,6 +63,8 @@ class FileResponse(WithMetaResponse):
   id: str
   name: str
   path: ty.Optional[str]
+  last_modified: ty.Optional[dt]
+  hash: ty.Optional[str]
 
 
 def _remap_out(content: ty.Any):
@@ -72,12 +75,16 @@ def _remap_out(content: ty.Any):
   if isinstance(content, list):
     content = list(map(_remap_out, content))
   elif isinstance(content, dict):
-    if 'id' in content:
+    if 'id' in content:  # TODO: probably content.get('.tag') == 'file':
       path = content.pop('path_display', content['name'])
+      last_mod = content.pop('server_modified', None)
+      if last_mod: last_mod = dt.strptime(last_mod, '%Y-%m-%dT%H:%M:%SZ')
       return FileResponse(
         id=content.pop('id'),
         name=content.pop('name'),
         path=path,
+        last_modified=last_mod,
+        hash=content.pop('content_hash', None),
         meta=content
       )
     elif (
@@ -183,12 +190,17 @@ class Dropbox(Api):
     return self.post('files', 'move_v2', json={
       'from_path': src,
       'to_path': dst,
-      'autorename': False,
+      'autorename': False,  # Fail if destination exists.
       'allow_ownership_transfer': False
     })
 
   @wrap('metadata')
+  def rm(self, path: str):
+    return self.post('files', 'delete_v2', json={'path': path})
+
+  @wrap('metadata')
   def ln(self, src: str, dst: str):
+    '''Create symlink on Dropbox.'''
     ref = self.post('files', 'copy_reference', 'get', json={'path': src})
     return self.post('files', 'copy_reference', 'save', json={
       'copy_reference': ref['copy_reference'],
