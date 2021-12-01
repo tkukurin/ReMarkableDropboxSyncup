@@ -88,6 +88,8 @@ if __name__ == '__main__':
   parser_up = subparser.add_parser('upload', parents=[common_args])
   parser_up.add_argument('--fname', type=str)
   parser_up.add_argument('--remotedir', type=str, default='/books/papers/')
+  parser_folders = subparser.add_parser('ls', parents=[common_args])
+  parser_folders.add_argument('--remotedir', type=str, default='/books/papers/')
 
   args = parser.parse_args()
   logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
@@ -99,4 +101,11 @@ if __name__ == '__main__':
     upload(api.DropboxContent(auth), args.fname, args.remotedir)
   elif args.cmd == 'sync':
     sync(api.Dropbox(auth))
+  elif args.cmd == 'ls':
+    print('\n'.join(
+      x.path for x in
+      api.Dropbox(auth).ls(args.remotedir).content
+      if x.meta['.tag'] != 'file'
+    ))
+
 
