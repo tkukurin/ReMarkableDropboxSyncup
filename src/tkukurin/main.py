@@ -1,6 +1,6 @@
-'''To-be CLI app, for now just calls sync with default options.
+'''CLI app with actions to sync remote directories or upload to Dropbox.
 
-The assumptions are that:
+For `sync`, the assumptions are that:
   * ReMarkable uploads to the root folder
   * There is a subfolder called /books/ where you originally put your files
   * You want to symlink from the /books/ folder to the root file
@@ -17,22 +17,18 @@ import os
 
 import api
 
+from pathlib import Path
+
 
 L = logging.getLogger(__name__)
 
 
-def main():
-  # TODO actually parse etc
-  parser = argparse.ArgumentParser()
-  sync = parser.add_argument_group('sync')
-  upload = parser.add_argument_group('upload')
-  return parser.parse_args()
-
-
 def upload(dropbox: api.DropboxContent, fname: str, remote_path: str):
-  # TODO make a bit more robust wrt. pathname resolution
-  with open(fname, 'rb') as fp:
-    dropbox.up(fp, f'{remote_path}/{fname}')
+  local = Path(fname)
+  remote = Path(remote_path) / local.name
+  L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
+  with local.open('rb') as fp:
+    dropbox.up(fp, str(remote))
 
 
 def sync(dropbox: api.Dropbox):
@@ -82,13 +78,25 @@ def sync(dropbox: api.Dropbox):
 
 
 if __name__ == '__main__':
-  # TODO add verbose flag
-  logging.basicConfig(level=logging.DEBUG)
+  common_args = argparse.ArgumentParser(add_help=False)
+  common_args.add_argument('--verbose', action='store_true', default=False)
+  common_args.add_argument('--keyfile', type=str, default='keys.json')
 
-  with open('./keys.json') as f:
+  parser = argparse.ArgumentParser()
+  subparser = parser.add_subparsers(title='cmd', required=True, dest='cmd')
+  parser_act = subparser.add_parser('sync', parents=[common_args])
+  parser_up = subparser.add_parser('upload', parents=[common_args])
+  parser_up.add_argument('--fname', type=str)
+  parser_up.add_argument('--remotedir', type=str, default='/books/papers/')
+
+  args = parser.parse_args()
+  logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+
+  with open(args.keyfile) as f:
     auth = json.load(f)['access_token']
 
-  dx_content = api.DropboxContent(auth)
-  dx = api.Dropbox(auth)
-  sync(dx)
+  if args.cmd == 'upload':
+    upload(api.DropboxContent(auth), args.fname, args.remotedir)
+  elif args.cmd == 'sync':
+    sync(api.Dropbox(auth))
 

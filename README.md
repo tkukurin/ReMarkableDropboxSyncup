@@ -5,6 +5,7 @@ It's annoying that ReMarkable uploads docs to the root Dropbox folder.
 This is supposed to emulate some 2-way sync by either "symlinking" in the cloud
 or literally moving files around.
 
+
 ## Running
 
 Just a dev app with zero dependencies.
@@ -15,6 +16,6 @@ Add a `keys.json` to the root folder with your [access token](https://www.dropbo
 }
 ```
 
-Run via `python src/tkukurin/main.py`.
+Run via `python src/tkukurin/main.py [sync|upload]`.
 The file header explains running logic.
 
