@@ -13,6 +13,7 @@ Reads credentials from local JSON file 'key.json' (`{"access_token": "..."}`).
 import argparse
 import json
 import logging
+import os
 
 import api
 
@@ -51,12 +52,12 @@ def sync(dropbox: api.Dropbox):
       return f'Accum({self.fails})'
 
   early_exit = {
-    'hash': Accum(lambda f, o: f.hash != o.hash),
+    'hash': Accum(lambda f, o: f.hash == o.hash),
     'modtime': Accum(lambda f, o: f.last_modified < o.last_modified),
   }
 
   is_pdf = lambda f: f.name.endswith('.pdf')
-  archive_path = '/books/archive/'
+  archive_path = '/books/archive'
   is_rm_sync_folder = lambda f: (
     f.path.startswith('/books/') and not f.path.startswith(archive_path))
 
@@ -65,11 +66,13 @@ def sync(dropbox: api.Dropbox):
     if other := next(filter(is_rm_sync_folder, others_same_name), None):
       if any(c(file, other) for c in early_exit.values()):
         continue
-      L.info('Linking:\n  `%s`\n    -> `%s`', other.path, file.path)
       # rm would be a bit unsafe if it fails, so this is a simple workaround.
       # con: you'll have to periodically manual delete the trash folder
+      archive_path = os.path.join(archive_path, other.name)
+      L.info('Linking:\n  `%s`\n    -> `%s`', other.path, file.path)
+      L.info('Archive:\n  `%s`\n    -> `%s`', other.path, archive_path)
       try:
-        dropbox.mv(other, f'{archive_path}/{other.name}')
+        dropbox.mv(other, archive_path)
         dropbox.ln(file, other.path)
       except Exception:
         L.exception('Failed: %s -> %s', other.path, file.path)
