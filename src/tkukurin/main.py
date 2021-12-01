@@ -24,7 +24,7 @@ L = logging.getLogger(__name__)
 
 
 def upload(dropbox: api.DropboxContent, fname: str, remote_path: str):
-  local = Path(fname)
+  local = Path(fname).expanduser()
   remote = Path(remote_path) / local.name
   L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
   with local.open('rb') as fp:
