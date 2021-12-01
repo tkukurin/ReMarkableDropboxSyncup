@@ -1,4 +1,8 @@
-'''API wrappers.'''
+'''API wrappers.
+
+Dumb idea since Dropbox has a Python API but I wanted to roll out sth simple
+since the project needs only a small subset of its features.
+'''
 import dataclasses as dcls
 import io
 import json
@@ -14,7 +18,7 @@ L = logging.getLogger(__name__)
 
 class Api:
   def __init__(self, base: str, auth: dict):
-    '''Base in format with `{}` where the replacement comes in.'''
+    '''Format `base` s.t. `{}` is where the modifiable part of the API comes.'''
     self.base = base
     self.auth = auth
 
@@ -61,6 +65,10 @@ class FileResponse(WithMetaResponse):
 
 
 def _remap_out(content: ty.Any):
+  '''Wraps Dropbox API response using some dumb heuristics.
+
+  Files will be named and such.
+  '''
   if isinstance(content, list):
     content = list(map(_remap_out, content))
   elif isinstance(content, dict):
@@ -80,16 +88,23 @@ def _remap_out(content: ty.Any):
 
 
 def _remap_in(arg: ty.Any):
+  '''(Un)wrapping input arguments automatically in a dumb manner.
+
+  This way you can use responses from the Dropbox API as inputs.
+  Probably should be implemented as interface or auto-wrapped in the future.
+  '''
   if isinstance(arg, FileResponse):
     arg = arg.path
   return arg
 
 
-def wrap(main_key: str):
+def wrap(extract_key: ty.Optional[str] = None):
+  '''Dumb method which remaps inputs/outputs to an API endpoint.'''
+  extract = (lambda d: d.pop(extract_key)) if extract_key else (lambda d: d)
   def _wrap(f: ty.Callable):
     def _inner(*args, **kwargs):
       res = f(*map(_remap_in, args), **kwargs)
-      content = _remap_out(res.pop(main_key))
+      content = _remap_out(extract(res))
       return GenericResponse(meta=res, content=content)
     return _inner
   return _wrap
