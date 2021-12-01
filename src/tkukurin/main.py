@@ -84,12 +84,12 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser()
   subparser = parser.add_subparsers(title='cmd', required=True, dest='cmd')
-  parser_act = subparser.add_parser('sync', parents=[common_args])
+  parser_sync = subparser.add_parser('sync', parents=[common_args])
   parser_up = subparser.add_parser('upload', parents=[common_args])
   parser_up.add_argument('--fname', type=str)
   parser_up.add_argument('--remotedir', type=str, default='/books/papers/')
-  parser_folders = subparser.add_parser('ls', parents=[common_args])
-  parser_folders.add_argument('--remotedir', type=str, default='/books/papers/')
+  parser_ls = subparser.add_parser('ls', parents=[common_args])
+  parser_ls.add_argument('--remotedir', type=str, default='/books/papers/')
 
   args = parser.parse_args()
   logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
@@ -97,11 +97,12 @@ if __name__ == '__main__':
   with open(args.keyfile) as f:
     auth = json.load(f)['access_token']
 
-  if args.cmd == 'upload':
+  pname = lambda p: p.prog.split()[1]
+  if args.cmd == pname(parser_up):
     upload(api.DropboxContent(auth), args.fname, args.remotedir)
-  elif args.cmd == 'sync':
+  elif args.cmd == pname(parser_sync):
     sync(api.Dropbox(auth))
-  elif args.cmd == 'ls':
+  elif args.cmd == pname(parser_ls):
     print('\n'.join(
       x.path for x in
       api.Dropbox(auth).ls(args.remotedir).content
