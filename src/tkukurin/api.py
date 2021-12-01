@@ -24,9 +24,7 @@ class Api:
     self.auth = auth
 
   def url(self, *path: str):
-    url = self.base.format('/'.join(path))
-    L.debug('Construct %s', url)
-    return url
+    return self.base.format('/'.join(path))
 
   def get(self, *path: str):
     url = self.url(*path)
