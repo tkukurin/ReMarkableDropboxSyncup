@@ -24,7 +24,10 @@ from pathlib import Path
 
 
 L = logging.getLogger(__name__)
-PAPERS_DIR = '/books/papers'
+
+class Defaults:
+  PAPERS_DIR = '/books'
+  ARCHIVE_DIR = '/books/archive'
 
 
 def _init_cli_from_methods(cls, common_args: argparse.ArgumentParser) -> tuple:
@@ -62,25 +65,27 @@ class Cli:
     logging.basicConfig(level=logging.DEBUG if args.pop('verbose') else logging.INFO)
     with open(args.pop('keyfile')) as f:
       auth = json.load(f)['access_token']
-
     self = cls(api.Dropbox(auth), api.DropboxContent(auth))
     return method(self, **args)
 
-  def ls(self, remotedir: str = PAPERS_DIR):
+  def ls(self, dir: str = Defaults.PAPERS_DIR):
     print('\n'.join(
       x.path for x in
-      self.dropbox.ls(remotedir).content
+      self.dropbox.ls(dir).content
       if x.meta['.tag'] != 'file'
     ))
 
-  def upload(self, fname: str, remotedir: str = PAPERS_DIR):
+  def upload(self, fname: str, dir: str = Defaults.PAPERS_DIR):
     local = Path(fname).expanduser()
-    remote = Path(remote_path) / local.name
+    remote = Path(dir) / local.name
     L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
     with local.open('rb') as fp:
       self.dropbox_content.up(fp, str(remote))
 
-  def sync(self):
+  def sync(
+      self,
+      papersdir: str = Defaults.PAPERS_DIR,
+      archivedir: str = Defaults.ARCHIVE_DIR):
     class Accum:
       def __init__(self, chk):
         self.chk = chk
@@ -103,10 +108,10 @@ class Cli:
     }
 
     is_pdf = lambda f: f.name.endswith('.pdf')
-    archive_path = '/books/archive'
     is_rm_sync_folder = lambda f: (
-      f.path.startswith('/books/') and not f.path.startswith(archive_path))
+      f.path.startswith(papersdir) and not f.path.startswith(archivedir))
 
+    L.info('Traversing root folder')
     for file in filter(is_pdf, self.dropbox.ls('/').content):
       others_same_name = self.dropbox.search(file.name).content
       if other := next(filter(is_rm_sync_folder, others_same_name), None):
@@ -114,15 +119,17 @@ class Cli:
           continue
         # rm would be a bit unsafe if it fails, so this is a simple workaround.
         # con: you'll have to periodically manual delete the trash folder
-        archive_path = os.path.join(archive_path, other.name)
+        archive_path_cur = os.path.join(archive_path, other.name)
         L.info('Linking:\n  `%s`\n    -> `%s`', other.path, file.path)
-        L.info('Archive:\n  `%s`\n    -> `%s`', other.path, archive_path)
+        L.info('Archive:\n  `%s`\n    -> `%s`', other.path, archive_path_cur)
         try:
-          self.dropbox.mv(other, archive_path)
+          self.dropbox.mv(other, archive_path_cur)
           self.dropbox.ln(file, other.path)
+          # NB, we can also insert rm for archive_path_cur here
         except Exception:
           L.exception('Failed: %s -> %s', other.path, file.path)
 
+    L.info('Done traversing.')
     for name, cond in early_exit.items():
       L.debug('skipped[%s]:\n%s\n', name, cond)
 
