@@ -17,6 +17,7 @@ import inspect as I
 import json
 import logging
 import os
+import typing as ty
 
 import api
 
@@ -32,8 +33,13 @@ class Defaults:
   ARCHIVE_DIR = '/books/archive'
 
 
-def _init_cli_from_methods(cls, common_args: argparse.ArgumentParser) -> tuple:
-  '''Automatically infer CLI from a method's public interface.'''
+def _init_cli_from_methods(
+    cls: ty.Type,
+    common_args: argparse.ArgumentParser) -> ty.Tuple[ty.Callable, dict]:
+  '''Automatically infer CLI from a method's public interface.
+
+  Returns a method to be called and corresponding args (incl `common_args`).
+  '''
   parser = argparse.ArgumentParser()
   subparser = parser.add_subparsers(title='cmd', required=True, dest='cmd')
   isclassmethod = lambda x: I.ismethod(x) and x.__self__ != cls
@@ -68,7 +74,7 @@ class Cli:
   dropbox_content: api.DropboxContent
 
   @classmethod
-  def run(cls):
+  def run(cls: ty.Type) -> ty.Any:
     common_args = argparse.ArgumentParser(add_help=False)
     common_args.add_argument('-v', '--verbose', action='count', default=0)
     common_args.add_argument('--keyfile', type=str, default='keys.json')
@@ -131,7 +137,7 @@ class Cli:
           continue
         # rm would be a bit unsafe if it fails, so this is a simple workaround.
         # con: you'll have to periodically manual delete the trash folder
-        archive_path_cur = os.path.join(archive_path, other.name)
+        archive_path_cur = os.path.join(archivedir, other.name)
         L.info('Linking:\n  `%s`\n    -> `%s`', other.path, file.path)
         L.info('Archive:\n  `%s`\n    -> `%s`', other.path, archive_path_cur)
         try:
