@@ -23,7 +23,9 @@ import api
 from pathlib import Path
 
 
+logging.basicConfig(level=logging.INFO)
 L = logging.getLogger(__name__)
+
 
 class Defaults:
   PAPERS_DIR = '/books'
@@ -48,7 +50,16 @@ def _init_cli_from_methods(cls, common_args: argparse.ArgumentParser) -> tuple:
       default = param.default if param.default != I._empty else None
       mparser.add_argument(f'--{name}', type=type_, default=default)
   args = parser.parse_args().__dict__
-  return methods[args.pop('cmd')], args
+  cmd = args.pop('cmd')
+  method = methods[cmd]
+
+  def logged_method(*a, **kw):
+    L.debug('Starting %s: %s', cmd, kw)
+    result = method(*a, **kw)
+    L.debug('Done')
+    return result
+
+  return logged_method, args
 
 
 @dcls.dataclass
@@ -59,10 +70,12 @@ class Cli:
   @classmethod
   def run(cls):
     common_args = argparse.ArgumentParser(add_help=False)
-    common_args.add_argument('--verbose', action='store_true', default=False)
+    common_args.add_argument('-v', '--verbose', action='count', default=0)
     common_args.add_argument('--keyfile', type=str, default='keys.json')
     method, args = _init_cli_from_methods(cls, common_args)
-    logging.basicConfig(level=logging.DEBUG if args.pop('verbose') else logging.INFO)
+    if verbose := args.pop('verbose'):
+      _log = L if verbose == 1 else logging.getLogger('')
+      _log.setLevel(logging.DEBUG)
     with open(args.pop('keyfile')) as f:
       auth = json.load(f)['access_token']
     self = cls(api.Dropbox(auth), api.DropboxContent(auth))
@@ -111,7 +124,6 @@ class Cli:
     is_rm_sync_folder = lambda f: (
       f.path.startswith(papersdir) and not f.path.startswith(archivedir))
 
-    L.info('Traversing root folder')
     for file in filter(is_pdf, self.dropbox.ls('/').content):
       others_same_name = self.dropbox.search(file.name).content
       if other := next(filter(is_rm_sync_folder, others_same_name), None):
@@ -129,7 +141,6 @@ class Cli:
         except Exception:
           L.exception('Failed: %s -> %s', other.path, file.path)
 
-    L.info('Done traversing.')
     for name, cond in early_exit.items():
       L.debug('skipped[%s]:\n%s\n', name, cond)
 
