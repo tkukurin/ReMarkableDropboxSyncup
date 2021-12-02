@@ -50,6 +50,12 @@ T = ty.TypeVar('T')
 class WithMetaResponse:
   meta: dict = dcls.field(repr=False)
 
+  @classmethod
+  def fromdict(cls, d: dict):
+    kws = {k: d.pop(k, None) for k in cls.__dataclass_fields__}
+    kws['meta'] = d
+    return cls(**kws)
+
 
 @dcls.dataclass
 class GenericResponse(ty.Generic[T], WithMetaResponse):
@@ -60,9 +66,25 @@ class GenericResponse(ty.Generic[T], WithMetaResponse):
 class FileResponse(WithMetaResponse):
   id: str
   name: str
-  path: ty.Optional[str]
-  last_modified: ty.Optional[dt]
-  hash: ty.Optional[str]
+  path_display: ty.Optional[str]
+  server_modified: ty.Optional[dt]
+  content_hash: ty.Optional[str]
+
+  @property
+  def hash(self):
+    return self.content_hash
+
+  @property
+  def path(self):
+    return self.path_display
+
+  @property
+  def last_modified(self):
+    return self.server_modified
+
+  def __post_init__(self):
+    if lm := self.server_modified:
+      setattr(self, 'server_modified', dt.strptime(lm, '%Y-%m-%dT%H:%M:%SZ'))
 
 
 def _remap_out(content: ty.Any):
@@ -74,17 +96,7 @@ def _remap_out(content: ty.Any):
     content = list(map(_remap_out, content))
   elif isinstance(content, dict):
     if 'id' in content:  # TODO: probably content.get('.tag') == 'file':
-      path = content.pop('path_display', content['name'])
-      last_mod = content.pop('server_modified', None)
-      if last_mod: last_mod = dt.strptime(last_mod, '%Y-%m-%dT%H:%M:%SZ')
-      return FileResponse(
-        id=content.pop('id'),
-        name=content.pop('name'),
-        path=path,
-        last_modified=last_mod,
-        hash=content.pop('content_hash', None),
-        meta=content
-      )
+      return FileResponse.fromdict(content)
     elif (
         'metadata' in content and
         content.get('match_type', {}).get('.tag') == 'filename'):
