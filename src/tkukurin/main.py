@@ -16,7 +16,6 @@ import inspect as I
 import json
 import logging
 import os
-import sys
 
 import api
 
@@ -46,7 +45,6 @@ class Cli:
     for mname, method in methods.items():
       mparser = subparser.add_parser(mname, parents=[common_args])
       sig = I.signature(method)
-      param: I.Parameter
       for name, param in sig.parameters.items():
         if name == 'self': continue
         type_ = param.annotation if param.annotation != I._empty else str
@@ -67,10 +65,8 @@ class Cli:
     print('\n'.join(
       x.path for x in
       self.dropbox.ls(remotedir).content
-      # api.Dropbox(auth).ls(args.remotedir).content
       if x.meta['.tag'] != 'file'
     ))
-
 
   def upload(self, fname: str, remotedir: str = PAPERS_DIR):
     local = Path(fname).expanduser()
@@ -78,7 +74,6 @@ class Cli:
     L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
     with local.open('rb') as fp:
       self.dropbox_content.up(fp, str(remote))
-
 
   def sync(self):
     class Accum:
@@ -120,7 +115,6 @@ class Cli:
         try:
           self.dropbox.mv(other, archive_path)
           self.dropbox.ln(file, other.path)
-        except Exception:
           L.exception('Failed: %s -> %s', other.path, file.path)
 
     for name, cond in early_exit.items():
