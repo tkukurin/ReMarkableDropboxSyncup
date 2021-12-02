@@ -27,6 +27,27 @@ L = logging.getLogger(__name__)
 PAPERS_DIR = '/books/papers'
 
 
+def _init_cli_from_methods(cls, common_args: argparse.ArgumentParser) -> tuple:
+  '''Automatically infer CLI from a method's public interface.'''
+  parser = argparse.ArgumentParser()
+  subparser = parser.add_subparsers(title='cmd', required=True, dest='cmd')
+  isclassmethod = lambda x: I.ismethod(x) and x.__self__ != cls
+  methods = {
+    name: obj for name, obj in I.getmembers(cls)
+    if I.isfunction(obj) and not isclassmethod(obj) and not name.startswith('_')
+  }
+  for mname, method in methods.items():
+    mparser = subparser.add_parser(mname, parents=[common_args])
+    sig = I.signature(method)
+    for name, param in sig.parameters.items():
+      if name == 'self': continue
+      type_ = param.annotation if param.annotation != I._empty else str
+      default = param.default if param.default != I._empty else None
+      mparser.add_argument(f'--{name}', type=type_, default=default)
+  args = parser.parse_args().__dict__
+  return methods[args.pop('cmd')], args
+
+
 @dcls.dataclass
 class Cli:
   dropbox: api.Dropbox
@@ -37,30 +58,13 @@ class Cli:
     common_args = argparse.ArgumentParser(add_help=False)
     common_args.add_argument('--verbose', action='store_true', default=False)
     common_args.add_argument('--keyfile', type=str, default='keys.json')
-    parser = argparse.ArgumentParser()
-    subparser = parser.add_subparsers(title='cmd', required=True, dest='cmd')
-    methods = {
-      name: obj for name, obj in I.getmembers(cls)
-      if I.isfunction(obj) and name != 'run' and not name.startswith('__')
-    }
-    for mname, method in methods.items():
-      mparser = subparser.add_parser(mname, parents=[common_args])
-      sig = I.signature(method)
-      for name, param in sig.parameters.items():
-        if name == 'self': continue
-        type_ = param.annotation if param.annotation != I._empty else str
-        default = param.default if param.default != I._empty else None
-        mparser.add_argument(f'--{name}', type=type_, default=default)
-
-    args = parser.parse_args().__dict__
+    method, args = _init_cli_from_methods(cls, common_args)
     logging.basicConfig(level=logging.DEBUG if args.pop('verbose') else logging.INFO)
-
     with open(args.pop('keyfile')) as f:
       auth = json.load(f)['access_token']
 
-    cli = cls(api.Dropbox(auth), api.DropboxContent(auth))
-    method = dict(I.getmembers(cli))[args.pop('cmd')]
-    return method(**args)
+    self = cls(api.Dropbox(auth), api.DropboxContent(auth))
+    return method(self, **args)
 
   def ls(self, remotedir: str = PAPERS_DIR):
     print('\n'.join(
