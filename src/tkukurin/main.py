@@ -1,6 +1,7 @@
-'''CLI app with actions to sync remote directories or upload to Dropbox.
+'''CLI app fixing ReMarkable sync annoyances for Dropbox to some extent.
 
-For `sync`, the assumptions are that:
+Not yet sure what the intended interface is for this.
+For now in `sync`, the assumptions are that:
   * ReMarkable uploads to the root folder
   * There is a subfolder called /books/ where you originally put your files
   * You want to symlink from the /books/ folder to the root file
@@ -8,7 +9,7 @@ For `sync`, the assumptions are that:
     * This is just to make it safe from accidental deletion
       (e.g. for whatever reason symlink fails, you can manually restore)
 
-Reads credentials from local JSON file 'key.json' (`{"access_token": "..."}`).
+CLI reads credentials from local 'key.json' (`{"access_token": "..."}`).
 '''
 import argparse
 import dataclasses as dcls
@@ -115,6 +116,7 @@ class Cli:
         try:
           self.dropbox.mv(other, archive_path)
           self.dropbox.ln(file, other.path)
+        except Exception:
           L.exception('Failed: %s -> %s', other.path, file.path)
 
     for name, cond in early_exit.items():

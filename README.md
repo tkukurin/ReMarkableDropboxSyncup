@@ -16,6 +16,6 @@ Add a `keys.json` to the root folder with your [access token](https://www.dropbo
 }
 ```
 
-Run via `python src/tkukurin/main.py [sync|upload]`.
+Options via `python src/tkukurin/main.py --help`.
 The file header explains running logic.
 
