@@ -62,6 +62,8 @@ class FileResponse(WithMetaResponse):
 
 
 class Api:
+
+  ResponseType = ty.Literal[requests.Response, dict, str]
   def __init__(self, base: str, auth: dict):
     '''Format `base` s.t. `{}` is where the modifiable part of the API comes.'''
     self.base = base
@@ -70,25 +72,29 @@ class Api:
   def url(self, *path: str):
     return self.base.format('/'.join(path))
 
-  def get(self, *path: str, T: ty.Literal[requests.Response, dict, str] = dict) -> T:
+  def _response_matcher(
+      self, T: ResponseType) -> ty.Callable[[requests.Response], T]:
+    return ({
+      str: lambda r: r.content.decode('utf8'),
+      dict: lambda r: r.json(),
+      requests.Response: lambda r: r
+    })[T]
+
+  def get(self, *path: str, T: ResponseType = dict) -> T:
     url = self.url(*path)
     response = requests.get(url, headers=self.auth)
     if not response.ok:
       L.error('Failed: %s', response.status_code)
       raise Exception(response.text)
-    return ({  # lazy evaluate
-      str: lambda: response.content.decode('utf8'),
-      dict: lambda: response.json(),
-      requests.Response: lambda: response
-    })[T]()
+    return self._response_matcher(T)(response)
 
-  def post(self, *path: str, json=None, headers=None):
+  def post(self, *path: str, json=None, headers=None, T: ResponseType = dict) -> T:
     url = self.url(*path)
     response = requests.post(url, json=json, headers={**self.auth, **(headers or {})})
     if not response.ok:
       L.error('Failed: %s', response.status_code)
       raise Exception(response.text)
-    return response.json()
+    return self._response_matcher(T)(response)
 
 
 def _remap_out(content: ty.Any):
