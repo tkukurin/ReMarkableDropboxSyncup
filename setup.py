@@ -13,5 +13,5 @@ setup(
   packages=['tkdbox'],
   package_dir={'tkdbox': 'tk'},
   install_requires=[],
-  scripts=['scripts/tkdbox'],
+  scripts=['bin/tkdbox'],
 )
