@@ -18,9 +18,9 @@ import logging
 import os
 import typing as ty
 
-import api
-import arxiv
-from utils import cli, text as txtutil
+from tk.dbox import api
+from tk.dbox import arxiv
+from tk.dbox.utils import cli, text as txtutil
 
 from pathlib import Path
 
@@ -34,6 +34,8 @@ class Defaults:
   PAPERS_DIR = '/books/papers'
   ARCHIVE_DIR = '/books/archive'
 
+  CONFIG_JSON = Path('~/.apikeys.json').expanduser()
+
 
 @dcls.dataclass
 class Cli:
@@ -45,13 +47,13 @@ class Cli:
   def run(cls: ty.Type) -> ty.Any:
     common_args = argparse.ArgumentParser(add_help=False)
     common_args.add_argument('-v', '--verbose', action='count', default=0)
-    common_args.add_argument('--keyfile', type=str, default='keys.json')
+    common_args.add_argument('--cfg', type=str, default=Defaults.CONFIG_JSON)
     method, args = cli.cli_from_instancemethods(cls, common_args, log=L)
     if verbose := args.pop('verbose'):
       _log = L if verbose == 1 else logging.getLogger('')
       _log.setLevel(logging.DEBUG)
-    with open(args.pop('keyfile')) as f:
-      auth = json.load(f)['access_token']
+    with open(args.pop('cfg')) as f:
+      auth = json.load(f)['dropbox_access_token']
     self = cls(
         dropbox=api.Dropbox(auth),
         dropbox_content=api.DropboxContent(auth),

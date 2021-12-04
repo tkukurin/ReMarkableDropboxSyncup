@@ -13,7 +13,7 @@ import typing as ty
 import base64
 
 from datetime import datetime as dt
-from utils.types import WithMetaResponse
+from tk.dbox.utils.types import WithMetaResponse
 
 L = logging.getLogger(__name__)
 T = ty.TypeVar('T')
@@ -52,6 +52,7 @@ class FileResponse(WithMetaResponse):
 class Api:
 
   ResponseType = ty.Literal[requests.Response, dict, str]
+
   def __init__(self, base: str, auth: dict):
     '''Format `base` s.t. `{}` is where the modifiable part of the API comes.'''
     self.base = base

@@ -1,4 +1,3 @@
-
 import argparse
 import typing as ty
 import inspect as I
@@ -28,7 +27,8 @@ def cli_from_instancemethods(
       if name == 'self': continue
       type_ = param.annotation if param.annotation != I._empty else str
       default = param.default if param.default != I._empty else None
-      mparser.add_argument(f'--{name}', type=type_, default=default)
+      flag = f'--{name}' if default else name
+      mparser.add_argument(flag, type=type_, default=default)
   args = parser.parse_args().__dict__
   cmd = args.pop('cmd')
   method = methods[cmd]
