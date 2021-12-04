@@ -11,23 +11,12 @@ import requests
 import typing as ty
 
 import base64
-import parse
 
 from datetime import datetime as dt
+from utils.types import WithMetaResponse
 
 L = logging.getLogger(__name__)
 T = ty.TypeVar('T')
-
-
-@dcls.dataclass
-class WithMetaResponse:
-  meta: dict = dcls.field(repr=False)
-
-  @classmethod
-  def fromdict(cls, d: dict):
-    kws = {k: d.pop(k, None) for k in cls.__dataclass_fields__}
-    kws['meta'] = d
-    return cls(**kws)
 
 
 @dcls.dataclass
@@ -71,8 +60,8 @@ class Api:
   def url(self, *path: str):
     return self.base.format('/'.join(path))
 
-  def _response_matcher(
-      self, T: ResponseType) -> ty.Callable[[requests.Response], T]:
+  @staticmethod
+  def _response_matcher(T: ResponseType) -> ty.Callable[[requests.Response], T]:
     return ({
       str: lambda r: r.content.decode('utf8'),
       dict: lambda r: r.json(),
@@ -232,19 +221,10 @@ class Dropbox(Api):
     })
 
 
-class Arxiv(Api):
+class GenericHtml(Api):
   def __init__(self):
-    super().__init__('https://arxiv.com/abs/{}', {})
-    self.pdf_base = 'https://arxiv.com/pdf/{}.pdf'
+    super().__init__('{}', {})
 
-  def url(self, path: str):
-    return self.base.format(path.rsplit('/')[-1])
-
-  def pdf_url(self, path: str):
-    return self.pdf_base.format(path.rsplit('/')[-1])
-
-  def get_meta(self, id_or_url: str):
-    page = self.get(id_or_url, T=str)
-    pdf_url = self.pdf_url(id_or_url)
-    return {**parse.ArxivExtractor.get_description(page), 'pdf_url': pdf_url}
+  def get(self, *path: str):
+    return super().get(*path, T=str)
 

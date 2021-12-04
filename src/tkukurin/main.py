@@ -16,11 +16,11 @@ import dataclasses as dcls
 import json
 import logging
 import os
-import re
 import typing as ty
 
 import api
-from utils import cli
+import arxiv
+from utils import cli, text as txtutil
 
 from pathlib import Path
 
@@ -39,7 +39,7 @@ class Defaults:
 class Cli:
   dropbox: api.Dropbox
   dropbox_content: api.DropboxContent
-  arxiv: api.Arxiv
+  html: api.GenericHtml
 
   @classmethod
   def run(cls: ty.Type) -> ty.Any:
@@ -55,7 +55,7 @@ class Cli:
     self = cls(
         dropbox=api.Dropbox(auth),
         dropbox_content=api.DropboxContent(auth),
-        arxiv=api.Arxiv())
+        html=api.GenericHtml())
     return method(self, **args)
 
   def ls(self, dir: str = Defaults.BOOKS_DIR):
@@ -72,12 +72,12 @@ class Cli:
     NB: hastily implemented; file will be renamed to `file (1)` if exists.
     """
     # https://www.dropbox.com/developers/documentation/http/documentation#files-save_url
-    meta = self.arxiv.get_meta(url)
-    name = re.sub('[\W_]+', ' ', meta['name'])
-    name = ''.join(map(str.capitalize, name.split()))
-    path = os.path.join(dir, f'{meta["id"]}_{name}.pdf')
-    L.info('Pulling PDF: %s -> %s', meta['pdf_url'], path)
-    response = self.dropbox.save_url(meta['pdf_url'], path)
+    page = self.html.get(arxiv.absurl(url))
+    meta = arxiv.meta_from_arxiv(page)
+    name = txtutil.clean_camelcase(meta.title)
+    path = os.path.join(dir, f'{meta.arxiv_id}_{name}.pdf')
+    L.info('Pulling PDF: %s -> %s', arxiv.pdfurl(meta.arxiv_id), path)
+    response = self.dropbox.save_url(arxiv.pdfurl(meta.arxiv_id), path)
     L.info('Job ID: %s', response.content.get('async_job_id'))
 
   def upload(self, fname: str, dir: str = Defaults.BOOKS_DIR):
