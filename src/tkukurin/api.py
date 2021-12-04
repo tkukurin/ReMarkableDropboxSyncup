@@ -3,7 +3,6 @@
 Dumb idea since Dropbox has a Python API but I wanted to roll out sth simple
 since the project needs only a small subset of its features.
 '''
-from __future__ import annotations
 import dataclasses as dcls
 import io
 import json
