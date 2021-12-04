@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from src.tkukurin import main
+from tk.dbox import main
 if __name__ == "__main__":
   main.Cli.run()
 

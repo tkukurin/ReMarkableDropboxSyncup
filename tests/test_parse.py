@@ -1,6 +1,6 @@
 import pytest
 import os
-from src.tkukurin import arxiv
+from tk.dbox import arxiv
 
 
 def test_arxivPage_parse_extractsMetadata():

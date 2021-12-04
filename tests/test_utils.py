@@ -1,5 +1,5 @@
 import pytest
-from src.tkukurin.utils import text
+from tk.dbox.utils import text
 
 @pytest.mark.parametrize('input_str', [
   'Ok Computer CAMEL-CASE',

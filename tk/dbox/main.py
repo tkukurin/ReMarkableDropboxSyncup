@@ -18,9 +18,9 @@ import logging
 import os
 import typing as ty
 
-from .utils import cli, text as txtutil
-from . import api
-from . import arxiv
+from tk.dbox import api
+from tk.dbox import arxiv
+from tk.dbox.utils import cli, text as txtutil
 
 from pathlib import Path
 
