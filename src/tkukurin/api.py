@@ -11,23 +11,12 @@ import requests
 import typing as ty
 
 import base64
-import parse
 
 from datetime import datetime as dt
+from utils.types import WithMetaResponse
 
 L = logging.getLogger(__name__)
 T = ty.TypeVar('T')
-
-
-@dcls.dataclass
-class WithMetaResponse:
-  meta: dict = dcls.field(repr=False)
-
-  @classmethod
-  def fromdict(cls, d: dict):
-    kws = {k: d.pop(k, None) for k in cls.__dataclass_fields__}
-    kws['meta'] = d
-    return cls(**kws)
 
 
 @dcls.dataclass
