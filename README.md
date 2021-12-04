@@ -9,6 +9,7 @@ or literally moving files around.
 ## Running
 
 Just a dev app with zero dependencies.
+Cf. [Dropbox HTTP API reference](https://www.dropbox.com/developers/documentation/http/documentation).
 Add a `keys.json` to the root folder with your [access token](https://www.dropbox.com/developers/apps/info/):
 ```json
 {
