@@ -13,7 +13,6 @@ CLI reads credentials from local 'key.json' (`{"access_token": "..."}`).
 '''
 import argparse
 import dataclasses as dcls
-import inspect as I
 import json
 import logging
 import os
@@ -21,6 +20,7 @@ import re
 import typing as ty
 
 import api
+from utils import cli
 
 from pathlib import Path
 
@@ -35,41 +35,6 @@ class Defaults:
   ARCHIVE_DIR = '/books/archive'
 
 
-def _init_cli_from_methods(
-    cls: ty.Type,
-    common_args: argparse.ArgumentParser) -> ty.Tuple[ty.Callable, dict]:
-  '''Automatically infer CLI from a method's public interface.
-
-  Returns a method to be called and corresponding args (incl `common_args`).
-  '''
-  parser = argparse.ArgumentParser()
-  subparser = parser.add_subparsers(title='cmd', required=True, dest='cmd')
-  isclassmethod = lambda x: I.ismethod(x) and x.__self__ != cls
-  methods = {
-    name: obj for name, obj in I.getmembers(cls)
-    if I.isfunction(obj) and not isclassmethod(obj) and not name.startswith('_')
-  }
-  for mname, method in methods.items():
-    mparser = subparser.add_parser(mname, parents=[common_args])
-    sig = I.signature(method)
-    for name, param in sig.parameters.items():
-      if name == 'self': continue
-      type_ = param.annotation if param.annotation != I._empty else str
-      default = param.default if param.default != I._empty else None
-      mparser.add_argument(f'--{name}', type=type_, default=default)
-  args = parser.parse_args().__dict__
-  cmd = args.pop('cmd')
-  method = methods[cmd]
-
-  def logged_method(*a, **kw):
-    L.debug('Starting %s: %s', cmd, kw)
-    result = method(*a, **kw)
-    L.debug('Done')
-    return result
-
-  return logged_method, args
-
-
 @dcls.dataclass
 class Cli:
   dropbox: api.Dropbox
@@ -81,7 +46,7 @@ class Cli:
     common_args = argparse.ArgumentParser(add_help=False)
     common_args.add_argument('-v', '--verbose', action='count', default=0)
     common_args.add_argument('--keyfile', type=str, default='keys.json')
-    method, args = _init_cli_from_methods(cls, common_args)
+    method, args = cli.cli_from_instancemethods(cls, common_args, log=L)
     if verbose := args.pop('verbose'):
       _log = L if verbose == 1 else logging.getLogger('')
       _log.setLevel(logging.DEBUG)
@@ -94,6 +59,7 @@ class Cli:
     return method(self, **args)
 
   def ls(self, dir: str = Defaults.BOOKS_DIR):
+    """List immediate contents of `dir`"""
     print('\n'.join(
       x.path for x in
       self.dropbox.ls(dir).content
@@ -101,7 +67,10 @@ class Cli:
     ))
 
   def arxiv(self, url: str, dir: str = Defaults.PAPERS_DIR):
-    # NB hastily implemented; file will be renamed to `file (1)` if exists, cf.
+    """Get file from arxiv (URL or ID) and send to dropbox `dir`.
+
+    NB: hastily implemented; file will be renamed to `file (1)` if exists.
+    """
     # https://www.dropbox.com/developers/documentation/http/documentation#files-save_url
     meta = self.arxiv.get_meta(url)
     name = re.sub('[\W_]+', ' ', meta['name'])
@@ -111,6 +80,7 @@ class Cli:
     L.info('Job ID: %s', response.content.get('async_job_id'))
 
   def upload(self, fname: str, dir: str = Defaults.BOOKS_DIR):
+    """Upload local `fname` to Dropbox `dir`."""
     local = Path(fname).expanduser()
     remote = Path(dir) / local.name
     L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
@@ -121,6 +91,12 @@ class Cli:
       self,
       syncdir: str = Defaults.BOOKS_DIR,
       archivedir: str = Defaults.ARCHIVE_DIR):
+    """Sync files by making symlinks from Dropbox `syncdir` to root.
+
+    This method assumes that Dropbox root contains annotated PDFs and the
+    un-annotated PDFs are in `syncdir`. This is due to the way ReMarkable
+    currently uploads files.
+    """
     class Accum:
       def __init__(self, chk):
         self.chk = chk
