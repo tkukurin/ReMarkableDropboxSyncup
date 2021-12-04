@@ -3,6 +3,7 @@
 Dumb idea since Dropbox has a Python API but I wanted to roll out sth simple
 since the project needs only a small subset of its features.
 '''
+from __future__ import annotations
 import dataclasses as dcls
 import io
 import json
@@ -15,40 +16,8 @@ import parse
 
 from datetime import datetime as dt
 
-
 L = logging.getLogger(__name__)
 T = ty.TypeVar('T')
-FileLike = ty.Union[str, FileResponse]
-
-
-class Api:
-  def __init__(self, base: str, auth: dict):
-    '''Format `base` s.t. `{}` is where the modifiable part of the API comes.'''
-    self.base = base
-    self.auth = auth
-
-  def url(self, *path: str):
-    return self.base.format('/'.join(path))
-
-  def get(self, *path: str, T: ty.Literal[requests.Response, dict, str] = dict) -> T:
-    url = self.url(*path)
-    response = requests.get(url, headers=self.auth)
-    if not response.ok:
-      L.error('Failed: %s', response.status_code)
-      raise Exception(response.text)
-    return ({  # lazy evaluate
-      str: lambda: response.content.decode('utf8'),
-      dict: lambda: response.json(),
-      requests.Response: lambda: response
-    })[T]()
-
-  def post(self, *path: str, json=None, headers=None):
-    url = self.url(*path)
-    response = requests.post(url, json=json, headers={**self.auth, **(headers or {})})
-    if not response.ok:
-      L.error('Failed: %s', response.status_code)
-      raise Exception(response.text)
-    return response.json()
 
 
 @dcls.dataclass
@@ -90,6 +59,36 @@ class FileResponse(WithMetaResponse):
   def __post_init__(self):
     if lm := self.server_modified:
       setattr(self, 'server_modified', dt.strptime(lm, '%Y-%m-%dT%H:%M:%SZ'))
+
+
+class Api:
+  def __init__(self, base: str, auth: dict):
+    '''Format `base` s.t. `{}` is where the modifiable part of the API comes.'''
+    self.base = base
+    self.auth = auth
+
+  def url(self, *path: str):
+    return self.base.format('/'.join(path))
+
+  def get(self, *path: str, T: ty.Literal[requests.Response, dict, str] = dict) -> T:
+    url = self.url(*path)
+    response = requests.get(url, headers=self.auth)
+    if not response.ok:
+      L.error('Failed: %s', response.status_code)
+      raise Exception(response.text)
+    return ({  # lazy evaluate
+      str: lambda: response.content.decode('utf8'),
+      dict: lambda: response.json(),
+      requests.Response: lambda: response
+    })[T]()
+
+  def post(self, *path: str, json=None, headers=None):
+    url = self.url(*path)
+    response = requests.post(url, json=json, headers={**self.auth, **(headers or {})})
+    if not response.ok:
+      L.error('Failed: %s', response.status_code)
+      raise Exception(response.text)
+    return response.json()
 
 
 def _remap_out(content: ty.Any):
@@ -172,7 +171,7 @@ class Dropbox(Api):
     super().__init__('https://api.dropboxapi.com/2/{}', auth_headers)
 
   @wrap('entries')
-  def ls(self, path: FileLike, recursive: bool = False):
+  def ls(self, path: str, recursive: bool = False):
     if path == '/': path = ''  # root folder this way
     return self.post('files', 'list_folder', json={
       'path': path or '',
