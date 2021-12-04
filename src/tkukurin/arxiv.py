@@ -3,7 +3,7 @@ import dataclasses as dcls
 import typing as ty
 
 from html.parser import HTMLParser
-from utils import types
+from .utils import types
 
 
 PDF_BASE = 'https://arxiv.com/pdf/{id}.pdf'

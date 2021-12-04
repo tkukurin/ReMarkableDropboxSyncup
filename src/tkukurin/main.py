@@ -18,9 +18,9 @@ import logging
 import os
 import typing as ty
 
-import api
-import arxiv
-from utils import cli, text as txtutil
+from .utils import cli, text as txtutil
+from . import api
+from . import arxiv
 
 from pathlib import Path
 
