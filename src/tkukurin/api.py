@@ -221,19 +221,10 @@ class Dropbox(Api):
     })
 
 
-class Arxiv(Api):
+class GenericHtml(Api):
   def __init__(self):
-    super().__init__('https://arxiv.com/abs/{}', {})
-    self.pdf_base = 'https://arxiv.com/pdf/{}.pdf'
+    super().__init__('{}', {})
 
-  def url(self, path: str):
-    return self.base.format(path.rsplit('/')[-1])
-
-  def pdf_url(self, path: str):
-    return self.pdf_base.format(path.rsplit('/')[-1])
-
-  def get_meta(self, id_or_url: str):
-    page = self.get(id_or_url, T=str)
-    pdf_url = self.pdf_url(id_or_url)
-    return {**parse.ArxivExtractor.get_description(page), 'pdf_url': pdf_url}
+  def get(self, *path: str):
+    return super().get(*path, T=str)
 
