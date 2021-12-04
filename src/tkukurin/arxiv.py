@@ -1,5 +1,4 @@
 import os
-import re
 import dataclasses as dcls
 import typing as ty
 
@@ -51,5 +50,4 @@ def absurl(id_or_url: str):
 def pdfurl(id_or_url: str):
   id = os.path.basename(id_or_url).removesuffix('.pdf')
   return PDF_BASE.format(id=id)
-
 

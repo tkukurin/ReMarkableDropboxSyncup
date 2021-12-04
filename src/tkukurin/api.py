@@ -60,8 +60,8 @@ class Api:
   def url(self, *path: str):
     return self.base.format('/'.join(path))
 
-  def _response_matcher(
-      self, T: ResponseType) -> ty.Callable[[requests.Response], T]:
+  @staticmethod
+  def _response_matcher(T: ResponseType) -> ty.Callable[[requests.Response], T]:
     return ({
       str: lambda r: r.content.decode('utf8'),
       dict: lambda r: r.json(),
