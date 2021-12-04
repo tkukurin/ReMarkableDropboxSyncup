@@ -17,6 +17,7 @@ import inspect as I
 import json
 import logging
 import os
+import re
 import typing as ty
 
 import api
@@ -73,6 +74,7 @@ def _init_cli_from_methods(
 class Cli:
   dropbox: api.Dropbox
   dropbox_content: api.DropboxContent
+  arxiv: api.Arxiv
 
   @classmethod
   def run(cls: ty.Type) -> ty.Any:
@@ -85,7 +87,10 @@ class Cli:
       _log.setLevel(logging.DEBUG)
     with open(args.pop('keyfile')) as f:
       auth = json.load(f)['access_token']
-    self = cls(api.Dropbox(auth), api.DropboxContent(auth))
+    self = cls(
+        dropbox=api.Dropbox(auth),
+        dropbox_content=api.DropboxContent(auth),
+        arxiv=api.Arxiv())
     return method(self, **args)
 
   def ls(self, dir: str = Defaults.BOOKS_DIR):
@@ -94,6 +99,16 @@ class Cli:
       self.dropbox.ls(dir).content
       if x.meta['.tag'] != 'file'
     ))
+
+  def arxiv(self, url: str, dir: str = Defaults.PAPERS_DIR):
+    # NB hastily implemented; file will be renamed to `file (1)` if exists, cf.
+    # https://www.dropbox.com/developers/documentation/http/documentation#files-save_url
+    meta = self.arxiv.get_meta(url)
+    name = re.sub('[\W_]+', ' ', meta['name'])
+    name = ''.join(map(str.capitalize, name.split()))
+    path = os.path.join(dir, f'{meta["id"]}_{name}.pdf')
+    response = self.dropbox.save_url(meta['pdf_url'], path)
+    L.info('Job ID: %s', response.content.get('async_job_id'))
 
   def upload(self, fname: str, dir: str = Defaults.BOOKS_DIR):
     local = Path(fname).expanduser()
