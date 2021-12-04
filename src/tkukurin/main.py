@@ -76,6 +76,7 @@ class Cli:
     name = re.sub('[\W_]+', ' ', meta['name'])
     name = ''.join(map(str.capitalize, name.split()))
     path = os.path.join(dir, f'{meta["id"]}_{name}.pdf')
+    L.info('Pulling PDF: %s -> %s', meta['pdf_url'], path)
     response = self.dropbox.save_url(meta['pdf_url'], path)
     L.info('Job ID: %s', response.content.get('async_job_id'))
 
@@ -123,7 +124,9 @@ class Cli:
       f.path.startswith(syncdir) and not f.path.startswith(archivedir))
 
     for file in filter(is_pdf, self.dropbox.ls('/').content):
-      others_same_name = self.dropbox.search(file.name).content
+      others_same_name = self.dropbox.search(
+          file.name, path=syncdir, filename_only=True).content
+      L.debug('Match %s: %s', file.name, [f.path for f in others_same_name])
       if other := next(filter(is_rm_sync_folder, others_same_name), None):
         if any(c(file, other) for c in early_exit.values()):
           continue

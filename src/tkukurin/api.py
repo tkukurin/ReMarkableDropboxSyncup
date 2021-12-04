@@ -103,7 +103,7 @@ def _remap_out(content: ty.Any):
       return FileResponse.fromdict(content)
     elif (
         'metadata' in content and
-        content.get('match_type', {}).get('.tag') == 'filename'):
+        content.get('match_type', {}).get('.tag').startswith('filename')):
       return _remap_out(content['metadata']['metadata'])
   return content
 
@@ -184,14 +184,14 @@ class Dropbox(Api):
     })
 
   @wrap('matches')
-  def search(self, query: str, path: ty.Optional[str] = None):
+  def search(self, query: str, path: ty.Optional[str] = None, filename_only=True):
     return self.post('files', 'search_v2', json={
       'query': query,
       'options': {
           'path': path or '',
           'max_results': 20,
           'file_status': 'active',
-          'filename_only': False
+          'filename_only': filename_only
       },
       'match_field_options': {'include_highlights': False}
     })
