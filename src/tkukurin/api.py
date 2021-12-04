@@ -11,6 +11,7 @@ import requests
 import typing as ty
 
 import base64
+import parse
 
 from datetime import datetime as dt
 
@@ -217,4 +218,29 @@ class Dropbox(Api):
       'copy_reference': ref['copy_reference'],
       'path': dst
     })
+
+  @wrap()
+  def save_url(self, url: str, path: ty.Optional[str] = None):
+    path = path or ('/' + url.rsplit('/')[1])
+    return self.post('files', 'save_url', json={
+      'url': url,
+      'path': path
+    })
+
+
+class Arxiv(Api):
+  def __init__(self):
+    super().__init__('https://arxiv.com/abs/{}', {})
+    self.pdf_base = 'https://arxiv.com/pdf/{}.pdf'
+
+  def url(self, path: str):
+    return self.base.format(path.rsplit('/')[-1])
+
+  def pdf_url(self, path: str):
+    return self.pdf_base.format(path.rsplit('/')[-1])
+
+  def get_meta(self, id_or_url: str):
+    page = self.get(id_or_url, T=str)
+    pdf_url = self.pdf_url(id_or_url)
+    return {**parse.ArxivExtractor.get_description(page), 'pdf_url': pdf_url}
 
