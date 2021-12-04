@@ -47,13 +47,12 @@ class Cli:
   def run(cls: ty.Type) -> ty.Any:
     common_args = argparse.ArgumentParser(add_help=False)
     common_args.add_argument('-v', '--verbose', action='count', default=0)
-    common_args.add_argument(
-        '--keyfile', type=str, default=Defaults.CONFIG_JSON)
+    common_args.add_argument('--cfg', type=str, default=Defaults.CONFIG_JSON)
     method, args = cli.cli_from_instancemethods(cls, common_args, log=L)
     if verbose := args.pop('verbose'):
       _log = L if verbose == 1 else logging.getLogger('')
       _log.setLevel(logging.DEBUG)
-    with open(args.pop('keyfile')) as f:
+    with open(args.pop('cfg')) as f:
       auth = json.load(f)['dropbox_access_token']
     self = cls(
         dropbox=api.Dropbox(auth),
