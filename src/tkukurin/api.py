@@ -3,7 +3,6 @@
 Dumb idea since Dropbox has a Python API but I wanted to roll out sth simple
 since the project needs only a small subset of its features.
 '''
-from datetime import datetime as dt
 import dataclasses as dcls
 import io
 import json
@@ -13,8 +12,12 @@ import typing as ty
 
 import base64
 
+from datetime import datetime as dt
+
 
 L = logging.getLogger(__name__)
+T = ty.TypeVar('T')
+FileLike = ty.Union[str, FileResponse]
 
 
 class Api:
@@ -26,13 +29,17 @@ class Api:
   def url(self, *path: str):
     return self.base.format('/'.join(path))
 
-  def get(self, *path: str):
+  def get(self, *path: str, T: ty.Literal[requests.Response, dict, str] = dict) -> T:
     url = self.url(*path)
     response = requests.get(url, headers=self.auth)
     if not response.ok:
       L.error('Failed: %s', response.status_code)
       raise Exception(response.text)
-    return response.json()
+    return ({  # lazy evaluate
+      str: lambda: response.content.decode('utf8'),
+      dict: lambda: response.json(),
+      requests.Response: lambda: response
+    })[T]()
 
   def post(self, *path: str, json=None, headers=None):
     url = self.url(*path)
@@ -41,9 +48,6 @@ class Api:
       L.error('Failed: %s', response.status_code)
       raise Exception(response.text)
     return response.json()
-
-
-T = ty.TypeVar('T')
 
 
 @dcls.dataclass
@@ -125,9 +129,6 @@ def wrap(extract_key: ty.Optional[str] = None):
       return GenericResponse(meta=res, content=content)
     return _inner
   return _wrap
-
-
-FileLike = ty.Union[str, FileResponse]
 
 
 class DropboxContent(Api):

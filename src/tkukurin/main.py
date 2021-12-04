@@ -29,7 +29,8 @@ L = logging.getLogger(__name__)
 
 
 class Defaults:
-  PAPERS_DIR = '/books'
+  BOOKS_DIR = '/books'
+  PAPERS_DIR = '/books/papers'
   ARCHIVE_DIR = '/books/archive'
 
 
@@ -87,14 +88,14 @@ class Cli:
     self = cls(api.Dropbox(auth), api.DropboxContent(auth))
     return method(self, **args)
 
-  def ls(self, dir: str = Defaults.PAPERS_DIR):
+  def ls(self, dir: str = Defaults.BOOKS_DIR):
     print('\n'.join(
       x.path for x in
       self.dropbox.ls(dir).content
       if x.meta['.tag'] != 'file'
     ))
 
-  def upload(self, fname: str, dir: str = Defaults.PAPERS_DIR):
+  def upload(self, fname: str, dir: str = Defaults.BOOKS_DIR):
     local = Path(fname).expanduser()
     remote = Path(dir) / local.name
     L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
@@ -103,7 +104,7 @@ class Cli:
 
   def sync(
       self,
-      papersdir: str = Defaults.PAPERS_DIR,
+      syncdir: str = Defaults.BOOKS_DIR,
       archivedir: str = Defaults.ARCHIVE_DIR):
     class Accum:
       def __init__(self, chk):
@@ -128,7 +129,7 @@ class Cli:
 
     is_pdf = lambda f: f.name.endswith('.pdf')
     is_rm_sync_folder = lambda f: (
-      f.path.startswith(papersdir) and not f.path.startswith(archivedir))
+      f.path.startswith(syncdir) and not f.path.startswith(archivedir))
 
     for file in filter(is_pdf, self.dropbox.ls('/').content):
       others_same_name = self.dropbox.search(file.name).content
