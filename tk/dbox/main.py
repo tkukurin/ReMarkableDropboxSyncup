@@ -19,7 +19,7 @@ import os
 import typing as ty
 
 from tk.dbox import api
-from tk.dbox import arxiv
+from tk.dbox.provider import auto
 from tk.dbox.utils import cli, text as txtutil
 
 from pathlib import Path
@@ -68,18 +68,18 @@ class Cli:
       if x.meta['.tag'] != 'file'
     ))
 
-  def arxiv(self, url: str, dir: str = Defaults.PAPERS_DIR):
+  def pdf(self, url: str, dir: str = Defaults.PAPERS_DIR):
     """Get file from arxiv (URL or ID) and send to dropbox `dir`.
 
     NB: hastily implemented; file will be renamed to `file (1)` if exists.
     """
     # https://www.dropbox.com/developers/documentation/http/documentation#files-save_url
-    page = self.html.get(arxiv.absurl(url))
-    meta = arxiv.meta_from_arxiv(page)
-    name = txtutil.clean_camelcase(meta.title)
-    path = os.path.join(dir, f'{meta.arxiv_id}_{name}.pdf')
-    L.info('Pulling PDF: %s -> %s', arxiv.pdfurl(meta.arxiv_id), path)
-    response = self.dropbox.save_url(arxiv.pdfurl(meta.arxiv_id), path)
+    if (dispatcher := next(auto.dispatch(url), None)) is None:
+      return L.error('Failed to find dispatcher for: %s', url)
+    fname, pdfurl = dispatcher(self.html.get, url)
+    path = os.path.join(dir, fname)
+    L.info('Pulling PDF: %s -> %s', pdfurl, path)
+    response = self.dropbox.save_url(pdfurl, path)
     L.info('Job ID: %s', response.content.get('async_job_id'))
 
   def upload(self, fname: str, dir: str = Defaults.BOOKS_DIR):
