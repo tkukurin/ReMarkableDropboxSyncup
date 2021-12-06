@@ -68,17 +68,15 @@ class Cli:
       if x.meta['.tag'] != 'file'
     ))
 
-  def pdf(self, url: str, dir: str = Defaults.PAPERS_DIR):
-    """Get PDF file and send to dropbox `dir`.
+  def put(self, item: str, dir: str = Defaults.PAPERS_DIR):
+    """Send given file to dropbox `dir`.
 
-    The URL parameter can be a local directory, pdf, or ArXiv ID.
-
-    NB: hastily implemented; file will be renamed to `file (1)` if exists.
+    The `item` parameter can be a local directory, pdf, or ArXiv ID.
     """
     # https://www.dropbox.com/developers/documentation/http/documentation#files-save_url
-    if (dispatcher := next(self.content_dispatcher(url), None)) is None:
-      return L.error('Failed to find dispatcher for: %s', url)
-    fname, pdfurl = dispatcher(url)
+    if (dispatcher := next(self.content_dispatcher(item), None)) is None:
+      return L.error('Failed to find dispatcher for: %s', item)
+    fname, pdfurl = dispatcher(item)
     path = os.path.join(dir, fname)
     L.info('Transfering PDF: %s -> %s', pdfurl, path)
     # NB this is some code smell, make dispatch handle this transparently?
