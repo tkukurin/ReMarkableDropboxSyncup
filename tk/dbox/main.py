@@ -69,7 +69,9 @@ class Cli:
     ))
 
   def pdf(self, url: str, dir: str = Defaults.PAPERS_DIR):
-    """Get file from arxiv (URL or ID) and send to dropbox `dir`.
+    """Get PDF file and send to dropbox `dir`.
+
+    The URL parameter can be a local directory, pdf, or ArXiv ID.
 
     NB: hastily implemented; file will be renamed to `file (1)` if exists.
     """

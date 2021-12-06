@@ -55,8 +55,7 @@ def pdfurl(id_or_url: str) -> str:
   return PDF_BASE.format(id=id)
 
 
-def maybe_id(s: str) -> bool:
-  # TODO improve+test this, prob won't work
+def maybe_id(s: str) -> bool:  # TODO improve+test this
   return re.match(r'\d{4}\.\d{5}', s.removesuffix('.pdf').strip('[]'))
 
 
