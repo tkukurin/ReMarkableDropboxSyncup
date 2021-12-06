@@ -20,7 +20,7 @@ import typing as ty
 
 from tk.dbox import api
 from tk.dbox.provider import auto
-from tk.dbox.utils import cli, text as txtutil
+from tk.dbox.utils import cli
 
 from pathlib import Path
 
@@ -78,17 +78,18 @@ class Cli:
       return L.error('Failed to find dispatcher for: %s', url)
     fname, pdfurl = dispatcher(url)
     path = os.path.join(dir, fname)
-    L.info('Pulling PDF: %s -> %s', pdfurl, path)
-    response = self.dropbox.save_url(pdfurl, path)
-    L.info('Job ID: %s', response.content.get('async_job_id'))
-
-  def upload(self, fname: str, dir: str = Defaults.BOOKS_DIR):
-    """Upload local `fname` to Dropbox `dir`."""
-    local = Path(fname).expanduser()
-    remote = Path(dir) / local.name
-    L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
-    with local.open('rb') as fp:
-      self.dropbox_content.up(fp, str(remote))
+    L.info('Transfering PDF: %s -> %s', pdfurl, path)
+    # NB this is some code smell, make dispatch handle this transparently?
+    # Maybe by returning a function reference
+    if (local := Path(pdfurl).expanduser()).exists():
+      remote = Path(dir) / fname
+      L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
+      with local.open('rb') as fp:
+        response = self.dropbox_content.up(fp, str(remote))
+    else:
+      response = self.dropbox.save_url(pdfurl, path)
+      L.info('Job ID: %s', response.content.get('async_job_id'))
+    return L.info('Server response: %s', response)
 
   def sync(
       self,
