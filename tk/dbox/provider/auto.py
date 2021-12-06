@@ -1,7 +1,7 @@
-import os
 import typing as ty
 import dataclasses as dcls
 
+from tk.dbox import api
 from tk.dbox.provider import arxiv
 from tk.dbox.utils import text as txtutil
 
@@ -13,26 +13,25 @@ class Matcher:
   dispatch: ty.Callable[[str], ty.Any]
 
 
-def getname(url: str):
-  name, ext = os.path.splitext(os.path.basename(url))
-  return txtutil.clean_camelcase(name) + ext
+class Dispatcher:
+  def __init__(self):
+    # TODO move this to constructor for injection?
+    self.html = api.GenericHtml()
+    _arxiv = lambda u: arxiv.go(self.html.get, u)
+    self.url_matchers = [
+      Matcher('arxiv', lambda url: 'arxiv' in url, _arxiv),
+      Matcher('pdf', lambda url: url.endswith('.pdf'),
+        lambda url: (txtutil.name_from(url), url)),
+    ]
+    self.nonurl_matchers = [
+      Matcher('arxiv', arxiv.maybe_id, _arxiv),
+    ]
 
-url_matchers = [
-  Matcher('arxiv', lambda url: 'arxiv' in url, arxiv.go),
-  Matcher('pdf', lambda url: url.endswith('.pdf'),
-    lambda getter, url: (getname(url), url)),
-]
-
-nonurl_matchers = [
-  Matcher('arxiv', arxiv.maybe_id, arxiv.go),
-]
-
-
-def dispatch(id_or_url: str):  # TODO -> ty.Optional[ty.Any]:
-  if txtutil.is_url(id_or_url):
-    for matcher in filter(lambda m: m.match(id_or_url), url_matchers):
-      yield matcher.dispatch  # (id_or_url)
-  else:
-    for matcher in filter(lambda m: m.match(id_or_url), nonurl_matchers):
-      yield matcher.dispatch  # (id_or_url)
+  def __call__(self, id_or_url: str):  # TODO -> ty.Optional[ty.Any]:
+    if txtutil.is_url(id_or_url):
+      for matcher in filter(lambda m: m.match(id_or_url), self.url_matchers):
+        yield matcher.dispatch
+    else:
+      for matcher in filter(lambda m: m.match(id_or_url), self.nonurl_matchers):
+        yield matcher.dispatch
 

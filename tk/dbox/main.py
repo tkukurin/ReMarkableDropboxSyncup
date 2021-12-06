@@ -41,7 +41,7 @@ class Defaults:
 class Cli:
   dropbox: api.Dropbox
   dropbox_content: api.DropboxContent
-  html: api.GenericHtml
+  content_dispatcher: auto.Dispatcher
 
   @classmethod
   def run(cls: ty.Type) -> ty.Any:
@@ -57,7 +57,7 @@ class Cli:
     self = cls(
         dropbox=api.Dropbox(auth),
         dropbox_content=api.DropboxContent(auth),
-        html=api.GenericHtml())
+        content_dispatcher=auto.Dispatcher())
     return method(self, **args)
 
   def ls(self, dir: str = Defaults.BOOKS_DIR):
@@ -74,9 +74,9 @@ class Cli:
     NB: hastily implemented; file will be renamed to `file (1)` if exists.
     """
     # https://www.dropbox.com/developers/documentation/http/documentation#files-save_url
-    if (dispatcher := next(auto.dispatch(url), None)) is None:
+    if (dispatcher := next(self.content_dispatcher(url), None)) is None:
       return L.error('Failed to find dispatcher for: %s', url)
-    fname, pdfurl = dispatcher(self.html.get, url)
+    fname, pdfurl = dispatcher(url)
     path = os.path.join(dir, fname)
     L.info('Pulling PDF: %s -> %s', pdfurl, path)
     response = self.dropbox.save_url(pdfurl, path)

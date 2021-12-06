@@ -1,4 +1,5 @@
 import re
+import os
 
 _RE_ONLY_WORDS = re.compile(r'[\W_]+')
 
@@ -18,4 +19,9 @@ def is_url(s: str) -> bool:
 def clean_camelcase(s: str) -> str:
   s = _RE_ONLY_WORDS.sub(' ', s)
   return ''.join(map(str.capitalize, s.split()))
+
+
+def name_from(url: str) -> str:
+  name, ext = os.path.splitext(os.path.basename(url))
+  return clean_camelcase(name) + ext
 
