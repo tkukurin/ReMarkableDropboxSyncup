@@ -1,6 +1,6 @@
 import pytest
 import os
-from tk.dbox import arxiv
+from tk.dbox.provider import arxiv
 
 
 def test_arxivPage_parse_extractsMetadata():

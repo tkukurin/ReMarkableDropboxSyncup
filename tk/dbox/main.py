@@ -19,8 +19,8 @@ import os
 import typing as ty
 
 from tk.dbox import api
-from tk.dbox import arxiv
-from tk.dbox.utils import cli, text as txtutil
+from tk.dbox.provider import auto
+from tk.dbox.utils import cli
 
 from pathlib import Path
 
@@ -41,7 +41,7 @@ class Defaults:
 class Cli:
   dropbox: api.Dropbox
   dropbox_content: api.DropboxContent
-  html: api.GenericHtml
+  content_dispatcher: auto.Dispatcher
 
   @classmethod
   def run(cls: ty.Type) -> ty.Any:
@@ -57,7 +57,7 @@ class Cli:
     self = cls(
         dropbox=api.Dropbox(auth),
         dropbox_content=api.DropboxContent(auth),
-        html=api.GenericHtml())
+        content_dispatcher=auto.Dispatcher())
     return method(self, **args)
 
   def ls(self, dir: str = Defaults.BOOKS_DIR):
@@ -68,27 +68,30 @@ class Cli:
       if x.meta['.tag'] != 'file'
     ))
 
-  def arxiv(self, url: str, dir: str = Defaults.PAPERS_DIR):
-    """Get file from arxiv (URL or ID) and send to dropbox `dir`.
+  def pdf(self, url: str, dir: str = Defaults.PAPERS_DIR):
+    """Get PDF file and send to dropbox `dir`.
+
+    The URL parameter can be a local directory, pdf, or ArXiv ID.
 
     NB: hastily implemented; file will be renamed to `file (1)` if exists.
     """
     # https://www.dropbox.com/developers/documentation/http/documentation#files-save_url
-    page = self.html.get(arxiv.absurl(url))
-    meta = arxiv.meta_from_arxiv(page)
-    name = txtutil.clean_camelcase(meta.title)
-    path = os.path.join(dir, f'{meta.arxiv_id}_{name}.pdf')
-    L.info('Pulling PDF: %s -> %s', arxiv.pdfurl(meta.arxiv_id), path)
-    response = self.dropbox.save_url(arxiv.pdfurl(meta.arxiv_id), path)
-    L.info('Job ID: %s', response.content.get('async_job_id'))
-
-  def upload(self, fname: str, dir: str = Defaults.BOOKS_DIR):
-    """Upload local `fname` to Dropbox `dir`."""
-    local = Path(fname).expanduser()
-    remote = Path(dir) / local.name
-    L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
-    with local.open('rb') as fp:
-      self.dropbox_content.up(fp, str(remote))
+    if (dispatcher := next(self.content_dispatcher(url), None)) is None:
+      return L.error('Failed to find dispatcher for: %s', url)
+    fname, pdfurl = dispatcher(url)
+    path = os.path.join(dir, fname)
+    L.info('Transfering PDF: %s -> %s', pdfurl, path)
+    # NB this is some code smell, make dispatch handle this transparently?
+    # Maybe by returning a function reference
+    if (local := Path(pdfurl).expanduser()).exists():
+      remote = Path(dir) / fname
+      L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
+      with local.open('rb') as fp:
+        response = self.dropbox_content.up(fp, str(remote))
+    else:
+      response = self.dropbox.save_url(pdfurl, path)
+      L.info('Job ID: %s', response.content.get('async_job_id'))
+    return L.info('Server response: %s', response)
 
   def sync(
       self,
