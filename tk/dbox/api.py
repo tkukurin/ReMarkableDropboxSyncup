@@ -165,11 +165,23 @@ class Dropbox(Api):
       auth_headers = {'Authorization': f'Bearer {auth_headers}'}
     super().__init__('https://api.dropboxapi.com/2/{}', auth_headers)
 
-  @wrap('entries')
-  def ls(self, path: str, recursive: bool = False):
-    if path == '/': path = ''  # root folder this way
-    return self.post('files', 'list_folder', json={
-      'path': path or '',
+  def _exhaust(
+      self,
+      data: GenericResponse,
+      wrapper: ty.Callable,
+      *path: str) -> GenericResponse:
+    """Calls the continue endpoint until done. TODO make this not hacky."""
+    while data.meta.get('has_more') and (cursor := data.meta.get('cursor')):
+      data_next = wrapper(self.post)(*path, json={"cursor": cursor})
+      data.content.extend(data_next.content)
+      data = GenericResponse(content=data.content, meta=data_next.meta)
+    return data
+
+  def ls(self, path: str, recursive: bool = False, exhaust: bool = False):
+    wrapper = wrap('entries')
+    basepath = 'files', 'list_folder'
+    data = wrapper(self.post)(*basepath, json={
+      'path': '' if path == '/' else path,  # root folder isn't `/` on server
       'recursive': recursive,
       'include_media_info': False,
       'include_deleted': False,
@@ -177,26 +189,32 @@ class Dropbox(Api):
       'include_mounted_folders': True,
       'include_non_downloadable_files': True
     })
+    return self._exhaust(data, wrapper, *basepath, 'continue') if exhaust else data
 
-  @wrap('matches')
-  def search(self, query: str, path: ty.Optional[str] = None, filename_only=True):
-    return self.post('files', 'search_v2', json={
+  def search(self, query: str, path: ty.Optional[str] = None,
+      filename_only: bool = True,
+      file_extensions: ty.Optional[list] = None,
+      exhaust: bool = False):
+    wrapper = wrap('matches')
+    data = wrapper(self.post)('files', 'search_v2', json={
       'query': query,
       'options': {
           'path': path or '',
-          'max_results': 20,
+          'max_results': 100,
           'file_status': 'active',
-          'filename_only': filename_only
+          'filename_only': filename_only,
+          'file_extensions': file_extensions,
       },
       'match_field_options': {'include_highlights': False}
     })
+    return self._exhaust(data, wrapper, 'files', 'search', 'continue_v2') if exhaust else data
 
   @wrap('metadata')
-  def mv(self, src: str, dst: str):
+  def mv(self, src: str, dst: str, rename: bool = True):
     return self.post('files', 'move_v2', json={
       'from_path': src,
       'to_path': dst,
-      'autorename': False,  # Fail if destination exists.
+      'autorename': rename,  # Fail or not if destination exists.
       'allow_ownership_transfer': False
     })
 
