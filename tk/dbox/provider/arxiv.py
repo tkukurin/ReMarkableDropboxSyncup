@@ -56,7 +56,7 @@ def pdfurl(id_or_url: str) -> str:
 
 
 def maybe_id(s: str) -> bool:  # TODO improve+test this
-  return re.match(r'\d{4}\.\d{5}', s.removesuffix('.pdf').strip('[]'))
+  return re.search(r'^\d{4}\.\d{5}$', s.removesuffix('.pdf').strip('[]'))
 
 
 def go(getter: ty.Callable[[str], str], id_or_url: str):
