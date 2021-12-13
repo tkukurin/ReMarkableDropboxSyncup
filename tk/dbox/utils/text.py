@@ -17,11 +17,12 @@ def is_url(s: str) -> bool:
 
 
 def clean_camelcase(s: str) -> str:
+  s = s.replace('%20', ' ')
   s = _RE_ONLY_WORDS.sub(' ', s)
   return ''.join(map(str.capitalize, s.split()))
 
 
 def name_from(url: str) -> str:
-  name, ext = os.path.splitext(os.path.basename(url))
+  name, ext = os.path.splitext(os.path.basename(url.rstrip('/')))
   return clean_camelcase(name) + ext
 

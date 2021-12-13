@@ -107,7 +107,6 @@ class Cli:
         L.info('Rename:\n  `%s`\n    -> `%s`', file.path, new_path)
         self.dropbox.mv(file.path, new_path)
 
-
   def sync(
       self,
       syncdir: str = Defaults.BOOKS_DIR,
