@@ -137,6 +137,7 @@ class Cli:
       # if the other file was modified after original, also don't move
       'modtime': Accum(lambda f, o: f.last_modified < o.last_modified),
     }
+    L.info('Early exit conditions: %s', list(early_exit))
 
     is_pdf = lambda f: f.name.endswith('.pdf')
     is_rm_sync_folder = lambda f: (
@@ -152,11 +153,11 @@ class Cli:
         # rm would be a bit unsafe if it fails, so this is a simple workaround.
         # con: you'll have to periodically manual delete the trash folder
         archive_path_cur = os.path.join(archivedir, other.name)
-        L.info('Linking:\n  `%s`\n    -> `%s`', other.path, file.path)
-        L.info('Archive:\n  `%s`\n    -> `%s`', other.path, archive_path_cur)
         try:
+          L.info('Archive:\n  `%s`\n    -> `%s`', other.path, archive_path_cur)
           self.dropbox.mv(other, archive_path_cur)
-          self.dropbox.ln(file, other.path)
+          L.info('Moving:\n  `%s`\n    -> `%s`', file.path, other.path)
+          self.dropbox.mv(file, other.path)
           # NB, we can also insert rm for archive_path_cur here
         except Exception:
           L.exception('Failed: %s -> %s', other.path, file.path)
