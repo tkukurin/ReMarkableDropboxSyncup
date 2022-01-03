@@ -1,4 +1,5 @@
 import os
+import itertools as it
 import typing as ty
 import dataclasses as dcls
 from collections import namedtuple
@@ -33,7 +34,11 @@ class Dispatcher:
       Matcher('local', lambda f: os.path.exists(f), lambda u: (os.path.basename(u), u)),
     ]
 
-  def __call__(self, id_or_url: str) -> ty.Optional[UrlToUploadable]:
+  def by_name(self, name: str) -> ty.Generator[ty.Optional[UrlToUploadable], None, None]:
+    matchers = it.chain(self.url_matchers, self.nonurl_matchers)
+    return (m.dispatch for m in matchers if m.name == name)
+
+  def __call__(self, id_or_url: str) -> ty.Generator[ty.Optional[UrlToUploadable], None, None]:
     if txtutil.is_url(id_or_url):
       for matcher in filter(lambda m: m.match(id_or_url), self.url_matchers):
         yield matcher.dispatch

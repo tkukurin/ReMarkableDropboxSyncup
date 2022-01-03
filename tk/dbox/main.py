@@ -68,14 +68,24 @@ class Cli:
       if x.meta['.tag'] != 'file'
     ))
 
-  def put(self, item: str, dir: str = Defaults.PAPERS_DIR):
+  def put(
+      self,
+      item: str,
+      dir: str = Defaults.PAPERS_DIR,
+      dispatcher: str = None):
     """Send given file to dropbox `dir`.
 
     The `item` parameter can be a local directory, pdf, or ArXiv ID.
+    If `dispatcher` is set, the dispatcher will explicitly be chosen by name.
     """
     # https://www.dropbox.com/developers/documentation/http/documentation#files-save_url
-    if (dispatcher := next(self.content_dispatcher(item), None)) is None:
+    dispatcher = next(
+      self.content_dispatcher(item) if dispatcher is None else
+      self.content_dispatcher.by_name(dispatcher), None)
+
+    if dispatcher is None:
       return L.error('Failed to find dispatcher for: %s', item)
+
     fname, pdfurl = dispatcher(item)
     path = os.path.join(dir, fname)
     L.info('Transfering PDF: %s -> %s', pdfurl, path)
@@ -111,11 +121,14 @@ class Cli:
       self,
       syncdir: str = Defaults.BOOKS_DIR,
       archivedir: str = Defaults.ARCHIVE_DIR):
-    """Sync files by making symlinks from Dropbox `syncdir` to root.
+    """Sync files by moving from root to `syncdir`.
 
     This method assumes that Dropbox root contains annotated PDFs and the
-    un-annotated PDFs are in `syncdir`. This is due to the way ReMarkable
-    currently uploads files.
+    un-annotated PDFs are somewhere in `syncdir`, e.g. if syncdir is `/books`.
+      * /AttentionIsAllYouNeed.pdf
+      * /books/nlp/AttentionIsAllYouNeed.pdf
+
+    The old file will be moved to `archivedir` for just-in-case backup.
     """
     class Accum:
       def __init__(self, chk):
