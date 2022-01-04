@@ -26,9 +26,8 @@ def cli_from_instancemethods(
     for name, param in sig.parameters.items():
       if name == 'self': continue
       type_ = param.annotation if param.annotation != I._empty else str
-      default = param.default if param.default != I._empty else None
-      flag = f'--{name}' if default else name
-      mparser.add_argument(flag, type=type_, default=default)
+      flag = f'--{name}' if param.default != I._empty else name
+      mparser.add_argument(flag, type=type_, default=param.default)
   args = parser.parse_args().__dict__
   cmd = args.pop('cmd')
   method = methods[cmd]
