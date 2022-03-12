@@ -177,11 +177,17 @@ class Dropbox(Api):
       data = GenericResponse(content=data.content, meta=data_next.meta)
     return data
 
+  @staticmethod
+  def _pathnorm(path: ty.Optional[str]) -> str:
+    """Dropbox: path cannot be `/`, otherwise needs a leading slash."""
+    path = (path or '').lstrip('/')
+    return ('/' + path) if path else ''
+
   def ls(self, path: str, recursive: bool = False, exhaust: bool = False):
     wrapper = wrap('entries')
     basepath = 'files', 'list_folder'
     data = wrapper(self.post)(*basepath, json={
-      'path': '' if path == '/' else path,  # root folder isn't `/` on server
+      'path': self._pathnorm(path),
       'recursive': recursive,
       'include_media_info': False,
       'include_deleted': False,
@@ -199,7 +205,7 @@ class Dropbox(Api):
     data = wrapper(self.post)('files', 'search_v2', json={
       'query': query,
       'options': {
-          'path': path or '',
+          'path': self._pathnorm(path),
           'max_results': 100,
           'file_status': 'active',
           'filename_only': filename_only,
@@ -212,23 +218,24 @@ class Dropbox(Api):
   @wrap('metadata')
   def mv(self, src: str, dst: str, rename: bool = True):
     return self.post('files', 'move_v2', json={
-      'from_path': src,
-      'to_path': dst,
+      'from_path': self._pathnorm(src),
+      'to_path': self._pathnorm(dst),
       'autorename': rename,  # Fail or not if destination exists.
       'allow_ownership_transfer': False
     })
 
   @wrap('metadata')
   def rm(self, path: str):
-    return self.post('files', 'delete_v2', json={'path': path})
+    return self.post('files', 'delete_v2', json={'path': self._pathnorm(path)})
 
   @wrap('metadata')
   def ln(self, src: str, dst: str):
     '''Create symlink on Dropbox.'''
-    ref = self.post('files', 'copy_reference', 'get', json={'path': src})
+    ref = self.post(
+      'files', 'copy_reference', 'get', json={'path': self._pathnorm(src)})
     return self.post('files', 'copy_reference', 'save', json={
       'copy_reference': ref['copy_reference'],
-      'path': dst
+      'path': self._pathnorm(dst)
     })
 
   @wrap()
@@ -236,7 +243,7 @@ class Dropbox(Api):
     path = path or ('/' + url.rsplit('/')[1])
     return self.post('files', 'save_url', json={
       'url': url,
-      'path': path
+      'path': self._pathnorm(path)
     })
 
 
