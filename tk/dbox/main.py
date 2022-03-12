@@ -88,6 +88,13 @@ class Cli:
 
     fname, pdfurl = dispatcher(item)
     path = os.path.join(dir, fname)
+
+    # check for existing files, allow user to bail
+    if existing := self.dropbox.search(fname, file_extensions=['pdf']):
+      existing = [x.name for x in existing.content]
+      if (response := cli.prompt(f'Found: {existing}. Continue?', 'yn')) == 'n':
+        return L.info('Cancelling due to duplicate files: %s', existing)
+
     L.info('Transfering PDF: %s -> %s', pdfurl, path)
     # NB this is some code smell, make dispatch handle this transparently?
     # Maybe by returning a function reference
