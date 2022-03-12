@@ -4,6 +4,20 @@ import inspect as I
 import logging
 
 
+def prompt(prompt: str, accepted_responses: ty.Sequence[str]) -> str:
+  """Prompt until case-insensitive matches from `accepted_responses` are chosen.
+
+  Returns lowercased user answer. Last entry in `accepted_responses` is
+  considered to be the default value (if user responds with empty string).
+  """
+  default = accepted_responses[-1].upper()
+  responses_str = '/'.join([*accepted_responses[:-1], default])
+  prompt = f'{prompt} ({responses_str}) > '
+  while (response := (input(prompt) or default).lower()) not in accepted_responses:
+    print('Please respond', responses_str.lower())
+  return response
+
+
 def cli_from_instancemethods(
     cls: ty.Type,
     common_args: argparse.ArgumentParser,
