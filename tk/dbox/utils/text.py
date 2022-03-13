@@ -33,7 +33,7 @@ def clean_camelcase_fname(fname: str) -> str:
   return clean_camelcase(fname) + ext
 
 
-def potential_names(url: str) -> ty.Iterable[str]:
+def potential_pdf_names(url: str) -> ty.Iterable[str]:
   """A set of heuristics to infer potential pdf name from a URL path.
 
   The return values are sorted by "likelihood" of it being a pdf name, for some
@@ -53,4 +53,9 @@ def potential_names(url: str) -> ty.Iterable[str]:
       yield from filter(lambda s: s.endswith('.pdf'), vs)
 
   yield from map(clean_camelcase_fname, _heuristics(urllib.parse.urlparse(url)))
+
+
+def name_from(url: str) -> str:
+  """Return the most likely name for the PDF."""
+  return next(potential_pdf_names(url))
 
