@@ -2,13 +2,13 @@ import pytest
 from tk.dbox.utils import text
 
 @pytest.mark.parametrize('input_str', [
-  'Ok Computer CAMEL-CASE',
-  'ok_computer---camel//case',
-  'ok    computer   camel \t\n case',
-  'ok%20computer%20cAmEl_case',
+  'Ok Computer CAMEL-CASE.pdf',
+  'ok%2ccomputer---camel//case.pdf',
+  'ok    computer   camel \t\n.case.pdf',
+  'ok%20computer%20cAmEl_case.pdf',
 ])
-def test_inputStr_cleanCamelcase_cleansCamelcase(input_str: str):
-  assert text.clean_camelcase(input_str) == 'OkComputerCamelCase'
+def test_inputStr_cleanCamelcaseFname_cleansCamelcase(input_str: str):
+  assert text.clean_camelcase_fname(input_str) == 'OkComputerCamelCase.pdf'
 
 
 @pytest.mark.parametrize('input_url', [

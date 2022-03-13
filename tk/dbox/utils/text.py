@@ -22,15 +22,13 @@ def is_url(s: str) -> bool:
   return _RE_URL.match(s)
 
 
-def clean_camelcase(s: str) -> str:
-  s = s.replace('%20', ' ')
-  s = _RE_ONLY_WORDS.sub(' ', s)
-  return ''.join(map(str.capitalize, s.split()))
-
-
 def clean_camelcase_fname(fname: str) -> str:
-  fname, ext = os.path.splitext(fname.strip('/'))
-  return clean_camelcase(fname) + ext
+  """Clean fname, e.g. `xyz___test123.abc.pdf` -> `XyzTest123Abc.pdf`"""
+  def _clean_camelcase(s: str) -> str:
+    s = _RE_ONLY_WORDS.sub(' ', urllib.parse.unquote_plus(s))
+    return ''.join(map(str.capitalize, s.split()))
+  fname, ext = os.path.splitext(fname)
+  return _clean_camelcase(fname) + ext
 
 
 def potential_pdf_names(url: str) -> ty.Iterable[str]:
