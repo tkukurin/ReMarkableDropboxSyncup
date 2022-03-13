@@ -1,5 +1,11 @@
+import typing as ty
+
 import re
 import os
+import urllib
+import logging
+
+L = logging.getLogger(__name__)
 
 _RE_ONLY_WORDS = re.compile(r'[\W_]+')
 
@@ -22,7 +28,29 @@ def clean_camelcase(s: str) -> str:
   return ''.join(map(str.capitalize, s.split()))
 
 
-def name_from(url: str) -> str:
-  name, ext = os.path.splitext(os.path.basename(url.rstrip('/')))
-  return clean_camelcase(name) + ext
+def clean_camelcase_fname(fname: str) -> str:
+  fname, ext = os.path.splitext(fname.strip('/'))
+  return clean_camelcase(fname) + ext
+
+
+def potential_names(url: str) -> ty.Iterable[str]:
+  """A set of heuristics to infer potential pdf name from a URL path.
+
+  The return values are sorted by "likelihood" of it being a pdf name, for some
+  very ad-hoc notion of likelihood.
+  """
+  def _heuristics(url: urllib.parse.ParseResult) -> ty.Iterable[str]:
+    if url.path.endswith('.pdf'): # a/b/c.pdf -> c.pdf
+      yield os.path.basename(url.path.rstrip('/'))
+
+    query_params = urllib.parse.parse_qs(url.query)
+    if 'filename' in query_params:
+      filename, *rest = query_params.pop('filename')
+      if rest: L.warning('Ignoring multiple filenames: %s', rest)
+      yield filename
+
+    for k, vs in query_params.items():
+      yield from filter(lambda s: s.endswith('.pdf'), vs)
+
+  yield from map(clean_camelcase_fname, _heuristics(urllib.parse.urlparse(url)))
 
