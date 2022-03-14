@@ -90,8 +90,8 @@ class Cli:
     path = os.path.join(dir, fname)
 
     # check for existing files, allow user to bail
-    if existing := self.dropbox.search(fname, file_extensions=['pdf']):
-      existing = [x.name for x in existing.content]
+    if existing := self.dropbox.search(fname, file_extensions=['pdf']).content:
+      existing = [x.name for x in existing]
       if (response := cli.prompt(f'Found: {existing}. Continue?', 'yn')) == 'n':
         return L.info('Cancelling due to duplicate files: %s', existing)
 

@@ -63,7 +63,7 @@ def go(getter: ty.Callable[[str], str], id_or_url: str):
   url = absurl(id_or_url)
   page = getter(url)
   meta = meta_from_arxiv(page)
-  name = txtutil.clean_camelcase(meta.title)
+  name = txtutil.clean_camelcase_fname(meta.title)
   name = f'{meta.arxiv_id}_{name}.pdf'
   return name, pdfurl(meta.arxiv_id)
 
