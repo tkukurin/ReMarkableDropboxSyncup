@@ -185,6 +185,19 @@ class Cli:
     for name, cond in early_exit.items():
       L.debug('skipped[%s]:\n%s\n', name, cond)
 
+  def s(self, what: str, ext: str = '') -> None:
+    """Search dropbox for files with extension `ext` (comma-separated).
+
+    Example:
+      tkdbox s "my file" --ext pdf,epub
+    """
+    found = self.dropbox.search(
+        what,
+        file_extensions=ext.split(',') if ext else None,
+        filename_only=True
+    ).content
+    print('\n'.join([ f.path for f in found ]))
+
 
 if __name__ == '__main__':
   Cli.run()
