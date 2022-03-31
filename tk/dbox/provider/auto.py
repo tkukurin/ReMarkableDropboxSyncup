@@ -28,6 +28,7 @@ class Dispatcher:
     self.url_matchers = [
       Matcher('arxiv', lambda u: 'arxiv' in u, _arxiv),
       Matcher('pdf', lambda u: u.endswith('.pdf'), lambda u: (txtutil.name_from(u), u)),
+      Matcher('epub', lambda u: u.endswith('.epub'), lambda u: (txtutil.name_from(u), u)),
     ]
     self.nonurl_matchers = [
       Matcher('arxiv', arxiv.maybe_id, _arxiv),

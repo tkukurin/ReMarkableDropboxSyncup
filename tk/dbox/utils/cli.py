@@ -33,15 +33,22 @@ def cli_from_instancemethods(
     name: obj for name, obj in I.getmembers(cls)
     if I.isfunction(obj) and not isclassmethod(obj) and not name.startswith('_')
   }
-  for mname, method in methods.items():
+  for method_name, method in methods.items():
     mparser = subparser.add_parser(
-        mname, parents=[common_args], help=I.getdoc(method))
+        method_name, parents=[common_args], help=I.getdoc(method))
     sig = I.signature(method)
+
+    def add_type_param(flag, type_, default):
+      if type_ in (list, ty.List): pass  # TODO
+      mparser.add_argument(flag, type=type_, default=default)
+
     for name, param in sig.parameters.items():
       if name == 'self': continue
       type_ = param.annotation if param.annotation != I._empty else str
+      # if parameter has a default, then we don't see it as a raw CLI value.
       flag = f'--{name}' if param.default != I._empty else name
-      mparser.add_argument(flag, type=type_, default=param.default)
+      add_type_param(flag, type_, param.default)
+
   args = parser.parse_args().__dict__
   cmd = args.pop('cmd')
   method = methods[cmd]

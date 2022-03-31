@@ -1,3 +1,4 @@
+import itertools as it
 import typing as ty
 
 import re
@@ -37,20 +38,23 @@ def potential_pdf_names(url: str) -> ty.Iterable[str]:
   The return values are sorted by "likelihood" of it being a pdf name, for some
   very ad-hoc notion of likelihood.
   """
-  def _heuristics(url: urllib.parse.ParseResult) -> ty.Iterable[str]:
-    if url.path.endswith('.pdf'): # a/b/c.pdf -> c.pdf
+  def _heuristics(url: urllib.parse.ParseResult, ext: str) -> ty.Iterable[str]:
+    if url.path.endswith(ext): # a/b/c.pdf -> c.pdf
       yield os.path.basename(url.path.rstrip('/'))
 
     query_params = urllib.parse.parse_qs(url.query)
     if 'filename' in query_params:
       filename, *rest = query_params.pop('filename')
       if rest: L.warning('Ignoring multiple filenames: %s', rest)
-      yield filename
+      if filename.endswith(ext): yield filename
 
     for k, vs in query_params.items():
-      yield from filter(lambda s: s.endswith('.pdf'), vs)
+      yield from filter(lambda s: s.endswith(ext), vs)
 
-  yield from map(clean_camelcase_fname, _heuristics(urllib.parse.urlparse(url)))
+  url_parsed = urllib.parse.urlparse(url)
+  maybe_names = (_heuristics(url_parsed, e) for e in ('.pdf', '.epub'))
+  clean_names = lambda names: map(clean_camelcase_fname, names)
+  yield from it.chain(*map(clean_names, maybe_names))
 
 
 def name_from(url: str) -> str:
