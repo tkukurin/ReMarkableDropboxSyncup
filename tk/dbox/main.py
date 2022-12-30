@@ -13,6 +13,7 @@ CLI reads credentials from local 'key.json' (`{"access_token": "..."}`).
 '''
 import argparse
 import dataclasses as dcls
+import datetime as dt
 import json
 import logging
 import os
@@ -29,12 +30,17 @@ logging.basicConfig(level=logging.INFO)
 L = logging.getLogger(__name__)
 
 
+def _curdate() -> str:
+  cur = dt.datetime.now()
+  return f"{cur.year}_{cur.month}"
+
+
 class Defaults:
   BOOKS_DIR = '/books'
   PAPERS_DIR = '/books/papers'
   ARCHIVE_DIR = '/books/archive'
 
-  CONFIG_JSON = Path('~/.apikeys.json').expanduser()
+  CONFIG_JSON = Path('~/.tkapikeys.json').expanduser()
 
 
 @dcls.dataclass
@@ -72,11 +78,13 @@ class Cli:
       self,
       item: str,
       dir: str = Defaults.PAPERS_DIR,
-      dispatcher: ty.Optional[str] = None):
+      name: str = None,
+      dispatcher: str = None):
     """Send given file to dropbox `dir`.
 
     The `item` parameter can be a local directory, pdf, or ArXiv ID.
     If `dispatcher` is set, the dispatcher will explicitly be chosen by name.
+    If `name` is set, it will overwrite the default file name.
     """
     # https://www.dropbox.com/developers/documentation/http/documentation#files-save_url
     dispatcher = next(
@@ -87,6 +95,9 @@ class Cli:
       return L.error('Failed to find dispatcher for: %s', item)
 
     fname, pdfurl = dispatcher(item)
+    if name:
+      L.debug('Overwriting %s with %s', fname, name)
+      fname = name
     path = os.path.join(dir, fname)
 
     # check for existing files, allow user to bail
@@ -94,6 +105,15 @@ class Cli:
       existing = [x.name for x in existing]
       if (response := cli.prompt(f'Found: {existing}. Continue?', 'yn')) == 'n':
         return L.info('Cancelling due to duplicate files: %s', existing)
+
+    if dir in (Defaults.PAPERS_DIR,):
+      new_name = os.path.join(dir, _curdate())
+      path = os.path.join(new_name, fname)
+      try:
+        L.info("Trying to create %s...", new_name)
+        result = self.dropbox.mkdir(new_name)
+      except:
+        L.info("Creating folder %s failed, probably exists", new_name)
 
     L.info('Transfering PDF: %s -> %s', pdfurl, path)
     # NB this is some code smell, make dispatch handle this transparently?

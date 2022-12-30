@@ -1,8 +1,8 @@
-'''API wrappers.
+"""API wrappers.
 
 Dumb idea since Dropbox has a Python API but I wanted to roll out sth simple
 since the project needs only a small subset of its features.
-'''
+"""
 import dataclasses as dcls
 import io
 import json
@@ -17,6 +17,12 @@ from tk.dbox.utils.types import WithMetaResponse
 
 L = logging.getLogger(__name__)
 T = ty.TypeVar('T')
+
+
+def _pathnorm(path: ty.Optional[str]) -> str:
+  """Dropbox: path cannot be `/`, otherwise needs a leading slash."""
+  path = (path or '').lstrip('/')
+  return ('/' + path) if path else ''
 
 
 @dcls.dataclass
@@ -51,10 +57,10 @@ class FileResponse(WithMetaResponse):
 
 class Api:
 
-  ResponseType = ty.Literal[requests.Response, dict, str]
+  ResponseType = ty.Type[requests.Response | dict | str]
 
   def __init__(self, base: str, auth: dict):
-    '''Format `base` s.t. `{}` is where the modifiable part of the API comes.'''
+    """Format `base` s.t. `{}` is where the modifiable part of the API comes."""
     self.base = base
     self.auth = auth
 
@@ -140,7 +146,7 @@ class DropboxContent(Api):
         **self.auth,
         'Content-Type': 'application/octet-stream',
         'Dropbox-API-Arg': json.dumps({
-          'path': path,
+          'path': _pathnorm(path),
           'mode': 'add',
           'autorename': True,
           'mute': False,
@@ -177,17 +183,11 @@ class Dropbox(Api):
       data = GenericResponse(content=data.content, meta=data_next.meta)
     return data
 
-  @staticmethod
-  def _pathnorm(path: ty.Optional[str]) -> str:
-    """Dropbox: path cannot be `/`, otherwise needs a leading slash."""
-    path = (path or '').lstrip('/')
-    return ('/' + path) if path else ''
-
   def ls(self, path: str, recursive: bool = False, exhaust: bool = False):
     wrapper = wrap('entries')
     basepath = 'files', 'list_folder'
     data = wrapper(self.post)(*basepath, json={
-      'path': self._pathnorm(path),
+      'path': _pathnorm(path),
       'recursive': recursive,
       'include_media_info': False,
       'include_deleted': False,
@@ -205,7 +205,7 @@ class Dropbox(Api):
     data = wrapper(self.post)('files', 'search_v2', json={
       'query': query,
       'options': {
-          'path': self._pathnorm(path),
+          'path': _pathnorm(path),
           'max_results': 100,
           'file_status': 'active',
           'filename_only': filename_only,
@@ -218,24 +218,31 @@ class Dropbox(Api):
   @wrap('metadata')
   def mv(self, src: str, dst: str, rename: bool = True):
     return self.post('files', 'move_v2', json={
-      'from_path': self._pathnorm(src),
-      'to_path': self._pathnorm(dst),
+      'from_path': _pathnorm(src),
+      'to_path': _pathnorm(dst),
       'autorename': rename,  # Fail or not if destination exists.
       'allow_ownership_transfer': False
     })
 
   @wrap('metadata')
+  def mkdir(self, dirpath: str):
+    return self.post('files', 'create_folder_v2', json={
+      'path': _pathnorm(dirpath),
+      'autorename': False,  # don't let the server try to resolve naming conflicts
+    })
+
+  @wrap('metadata')
   def rm(self, path: str):
-    return self.post('files', 'delete_v2', json={'path': self._pathnorm(path)})
+    return self.post('files', 'delete_v2', json={'path': _pathnorm(path)})
 
   @wrap('metadata')
   def ln(self, src: str, dst: str):
     '''Create symlink on Dropbox.'''
     ref = self.post(
-      'files', 'copy_reference', 'get', json={'path': self._pathnorm(src)})
+      'files', 'copy_reference', 'get', json={'path': _pathnorm(src)})
     return self.post('files', 'copy_reference', 'save', json={
       'copy_reference': ref['copy_reference'],
-      'path': self._pathnorm(dst)
+      'path': _pathnorm(dst)
     })
 
   @wrap()
@@ -243,7 +250,7 @@ class Dropbox(Api):
     path = path or ('/' + url.rsplit('/')[1])
     return self.post('files', 'save_url', json={
       'url': url,
-      'path': self._pathnorm(path)
+      'path': _pathnorm(path)
     })
 
 
