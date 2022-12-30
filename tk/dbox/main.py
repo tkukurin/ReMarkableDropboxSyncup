@@ -30,11 +30,6 @@ logging.basicConfig(level=logging.INFO)
 L = logging.getLogger(__name__)
 
 
-def _curdate() -> str:
-  cur = dt.datetime.now()
-  return f"{cur.year}_{cur.month}"
-
-
 class Defaults:
   BOOKS_DIR = '/books'
   PAPERS_DIR = '/books/papers'
@@ -107,7 +102,8 @@ class Cli:
         return L.info('Cancelling due to duplicate files: %s', existing)
 
     if dir in (Defaults.PAPERS_DIR,):
-      new_name = os.path.join(dir, _curdate())
+      cur = dt.datetime.now()
+      new_name = os.path.join(dir, f"{cur.year}-{cur.month}")
       path = os.path.join(new_name, fname)
       try:
         L.info("Trying to create %s...", new_name)
