@@ -103,7 +103,7 @@ class Cli:
 
     if dir in (Defaults.PAPERS_DIR,):
       cur = dt.datetime.now()
-      new_name = os.path.join(dir, f"{cur.year}-{cur.month}")
+      new_name = os.path.join(dir, f"{cur.year}-{cur.month:02d}")
       path = os.path.join(new_name, fname)
       try:
         L.info("Trying to create %s...", new_name)
