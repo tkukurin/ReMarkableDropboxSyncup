@@ -69,6 +69,10 @@ class Cli:
       if x.meta['.tag'] != 'file'
     ))
 
+  def mv(self, src: str, dst: str):
+    response = self.dropbox.mv(src, dst)
+    L.info("Server response: %s", response)
+
   def put(
       self,
       item: str,
@@ -115,10 +119,9 @@ class Cli:
     # NB this is some code smell, make dispatch handle this transparently?
     # Maybe by returning a function reference
     if (local := Path(pdfurl).expanduser()).exists():
-      remote = Path(dir) / fname
-      L.info('Uploading local `%s` to Dropbox `%s`', local, remote)
+      L.info('Uploading local `%s` to Dropbox `%s`', local, path)
       with local.open('rb') as fp:
-        response = self.dropbox_content.up(fp, str(remote))
+        response = self.dropbox_content.up(fp, str(path))
     else:
       response = self.dropbox.save_url(pdfurl, path)
       L.info('Job ID: %s', response.content.get('async_job_id'))

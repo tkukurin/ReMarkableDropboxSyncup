@@ -13,7 +13,7 @@ import typing as ty
 import base64
 
 from datetime import datetime as dt
-from tk.dbox.utils.types import WithMetaResponse
+from tk.dbox.utils.type import WithMetaResponse
 
 L = logging.getLogger(__name__)
 T = ty.TypeVar('T')
