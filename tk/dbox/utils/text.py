@@ -48,6 +48,10 @@ def potential_pdf_names(url: str) -> ty.Iterable[str]:
       if rest: L.warning('Ignoring multiple filenames: %s', rest)
       if filename.endswith(ext): yield filename
 
+    if 'id' in query_params:
+      id_, *rest = query_params.pop('id')
+      yield f"{id_}.pdf"
+
     for k, vs in query_params.items():
       yield from filter(lambda s: s.endswith(ext), vs)
 
