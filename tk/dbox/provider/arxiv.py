@@ -5,7 +5,7 @@ import typing as ty
 
 from html.parser import HTMLParser
 
-from tk.dbox.utils import types
+from tk.dbox.utils import type as types
 from tk.dbox.utils import text as txtutil
 
 
