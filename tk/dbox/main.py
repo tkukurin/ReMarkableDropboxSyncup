@@ -84,7 +84,7 @@ class Cli:
   alias: ty.ClassVar[Alias] = Alias({
     "papers": Defaults.PAPERS_DIR,
     "books": Defaults.BOOKS_DIR,
-    "archive": Defaults.BOOKS_DIR,
+    "archive": Defaults.ARCHIVE_DIR,
   })
 
   @classmethod
