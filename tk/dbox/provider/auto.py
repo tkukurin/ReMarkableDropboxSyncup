@@ -25,12 +25,12 @@ class Matcher:
 class Dispatcher:
   def __init__(self):
     _get = api.GenericHtml().get
-    _arxiv = meta.WithHtmlFetcher(
+    self._arxiv = _arxiv = meta.WithHtmlFetcher(
       _get,
       pdfurl='https://arxiv.org/pdf/{id}.pdf',
       absurl='https://arxiv.org/abs/{id}',
     )
-    _review = meta.WithHtmlFetcher(
+    self._review = _review = meta.WithHtmlFetcher(
       _get,
       pdfurl='https://openreview.net/pdf?id={id}',
       absurl='https://openreview.net/forum?id={id}',

@@ -78,7 +78,7 @@ class WithHtmlFetcher:
     )
 
     if not likely_url:  # assume ID given directly
-      return url.netloc
+      return url.geturl().removesuffix(".pdf")
 
     # TODO good enough for openreview and arxiv, but could be made nicer.
     # make sure to keep ordering since openreivew has `/pdf?id=` path

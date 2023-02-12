@@ -20,6 +20,7 @@ from tk.dbox.provider import auto
 from tk.dbox.utils import cli
 
 from pathlib import Path
+from tk.dbox.provider import meta
 
 
 logging.basicConfig(level=logging.INFO)
@@ -167,17 +168,18 @@ class Cli:
       L.info('Job ID: %s', response.content.get('async_job_id'))
     return L.info('Server response: %s', response)
 
-  def arxivfix(self):
-    """Rename leftover ArXiv files (`1234.12345.pdf`) to contain titles."""
-    from tk.dbox.provider import arxiv
-    html = api.GenericHtml()
+  def metafix(self):
+    """Rename leftover ArXiv files (`1234.12345.pdf`) to contain titles.
+
+    TODO: match more generic filenames?
+    """
     L.info('Listing *all* files...')
     # Doesn't seem it supports regexes?
     pdfs = self.dropbox.search('pdf', file_extensions=['pdf'], exhaust=True)
     L.info('Found %s PDFs. Looking for files to rename.', len(pdfs.content))
     for file in pdfs.content:
-      if arxiv.maybe_id(file.name):
-        new_name, _ = arxiv.go(html.get, file.name)
+      if matcher := next(self.content_dispatcher(file.name), None):
+        new_name, _ = matcher(file.name)
         basepath, _ = os.path.split(file.path)
         new_path = os.path.join(basepath, new_name)
         L.info('Rename:\n  `%s`\n    -> `%s`', file.path, new_path)
