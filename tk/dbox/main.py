@@ -1,16 +1,10 @@
-'''CLI app fixing ReMarkable sync annoyances for Dropbox to some extent.
+"""CLI app to manipulate Dropbox for some personal use-cases.
 
-Not yet sure what the intended interface is for this.
-For now in `sync`, the assumptions are that:
-  * ReMarkable uploads to the root folder
-  * There is a subfolder called /books/ where you originally put your files
-  * You want to symlink from the /books/ folder to the root file
-  * You want to move your existing file to /books/archive
-    * This is just to make it safe from accidental deletion
-      (e.g. for whatever reason symlink fails, you can manually restore)
+E.g. allows to submit papers via: `tkdbox put {url}`.
+It will also sync / normalize papers names from various sources.
 
-CLI reads credentials from local 'key.json' (`{"access_token": "..."}`).
-'''
+IDK if the app does anything else that's useful.
+"""
 import argparse
 import dataclasses as dcls
 import datetime as dt
@@ -114,6 +108,8 @@ class Cli:
     ))
 
   def mv(self, src: str, dst: str):
+    if (response := cli.prompt(f'Moving: {src}->{dst}. Continue?', 'yn')) == 'n':
+      return L.info('Cancelling...')
     response = self.dropbox.mv(src, dst)
     L.info("Server response: %s", response)
 
@@ -192,6 +188,8 @@ class Cli:
       syncdir: str = Defaults.BOOKS_DIR,
       archivedir: str = Defaults.ARCHIVE_DIR):
     """Sync files by moving from root to `syncdir`.
+
+    Use-case: ReMarkable always uploads PDFs to Dropbox root `/`.
 
     This method assumes that Dropbox root contains annotated PDFs and the
     un-annotated PDFs are somewhere in `syncdir`, e.g. if syncdir is `/books`.
