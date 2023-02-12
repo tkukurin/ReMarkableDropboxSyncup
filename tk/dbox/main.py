@@ -14,6 +14,8 @@ CLI reads credentials from local 'key.json' (`{"access_token": "..."}`).
 import argparse
 import dataclasses as dcls
 import datetime as dt
+import functools
+import itertools as it
 import json
 import logging
 import os
@@ -38,11 +40,51 @@ class Defaults:
   CONFIG_JSON = Path('~/.tkapikeys.json').expanduser()
 
 
+class Alias:
+  """Alias to make directory access easier from CLI.
+  """
+
+  def __init__(self, dir_remap: dict[str, str]):
+    self._dir_remap = dir_remap
+
+  def __getitem__(self, value: str) -> str:
+    return self._dir_remap.get(value, value)
+
+  def wrap(self, function: ty.Callable) -> ty.Callable:
+    """Automatically alias values starting with '$' in given function.
+
+    NOTE: Quite likely this will fail in unpredictable ways.
+    This is just a basic demo. TODO: make as proper py format?
+    """
+
+    @functools.wraps(function)
+    def _wrap(*args, **kwargs):
+
+      def _remap(k: ty.Union[int, str], v: str) -> str:
+        if isinstance(v, str) and v.startswith('$'):
+          v, *parts = v[1:].split('/')
+          parts = "/".join(parts)
+          v = f"{self[v]}/{parts}"
+        return v
+
+      args = list(it.starmap(_remap, enumerate(args)))
+      kwargs = {k:_remap(k, v) for k, v in kwargs.items()}
+      return function(*args, **kwargs)
+
+    return _wrap
+
+
 @dcls.dataclass
 class Cli:
   dropbox: api.Dropbox
   dropbox_content: api.DropboxContent
   content_dispatcher: auto.Dispatcher
+
+  alias: ty.ClassVar[Alias] = Alias({
+    "papers": Defaults.PAPERS_DIR,
+    "books": Defaults.BOOKS_DIR,
+    "archive": Defaults.BOOKS_DIR,
+  })
 
   @classmethod
   def run(cls: ty.Type) -> ty.Any:
@@ -59,6 +101,7 @@ class Cli:
         dropbox=api.Dropbox(auth),
         dropbox_content=api.DropboxContent(auth),
         content_dispatcher=auto.Dispatcher())
+    method = self.alias.wrap(method)
     return method(self, **args)
 
   def ls(self, dir: str = Defaults.BOOKS_DIR):
