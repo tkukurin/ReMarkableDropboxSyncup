@@ -21,10 +21,11 @@ def prompt(prompt: str, accepted_responses: ty.Sequence[str]) -> str:
 def cli_from_instancemethods(
     cls: ty.Type,
     common_args: argparse.ArgumentParser,
-    log: logging.Logger) -> ty.Tuple[ty.Callable, dict]:
+    log: ty.Optional[logging.Logger] = None) -> ty.Tuple[ty.Callable, dict]:
   '''Automatically infer CLI from a method's public interface.
 
   Returns a method to be called and corresponding args (incl `common_args`).
+  If `log` is given, then sends a debug log around method execution.
   '''
   parser = argparse.ArgumentParser()
   subparser = parser.add_subparsers(title='cmd', required=True, dest='cmd')
