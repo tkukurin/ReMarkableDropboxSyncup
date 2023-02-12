@@ -51,24 +51,25 @@ class Alias:
     return self._dir_remap.get(value, value)
 
   def wrap(self, function: ty.Callable) -> ty.Callable:
-    """Automatically alias values starting with '$' in given function.
+    """Automatically alias values per Python formatting rules.
+
+    I.e. braces-surrounded items are directly replaced according to
+    `self._dir_remap`: `{papers}/` might map to `/books/papers`.
 
     NOTE: Quite likely this will fail in unpredictable ways.
-    This is just a basic demo. TODO: make as proper py format?
     """
 
     @functools.wraps(function)
     def _wrap(*args, **kwargs):
 
       def _remap(k: ty.Union[int, str], v: str) -> str:
-        if isinstance(v, str) and v.startswith('$'):
-          v, *parts = v[1:].split('/')
-          parts = "/".join(parts)
-          v = f"{self[v]}/{parts}"
-        return v
+        if isinstance(v, str):
+          v = v.format(**self._dir_remap)
+        return k, v
 
-      args = list(it.starmap(_remap, enumerate(args)))
-      kwargs = {k:_remap(k, v) for k, v in kwargs.items()}
+      args = [v for _, v in it.starmap(_remap, enumerate(args))]
+      kwargs = dict(it.starmap(_remap, kwargs.items()))
+
       return function(*args, **kwargs)
 
     return _wrap
