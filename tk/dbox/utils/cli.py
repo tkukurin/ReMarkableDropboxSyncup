@@ -38,9 +38,23 @@ def cli_from_instancemethods(
         method_name, parents=[common_args], help=I.getdoc(method))
     sig = I.signature(method)
 
-    def add_type_param(flag, type_, default):
-      if type_ in (list, ty.List): pass  # TODO
-      mparser.add_argument(flag, type=type_, default=default)
+    def add_type_param(flag, annot, default):
+      """Really untested but seems to work."""
+      kws = {}
+      type_ = annot
+      if ty.get_origin(annot) is ty.List:
+        kws = {
+          "action": "append",
+          "nargs": "*",
+        }
+      # Optional type
+      if ty.get_origin(annot) is ty.Union and type(None) in ty.get_args(annot):
+        for arg in ty.get_args(annot):
+          if arg is not type(None):
+            type_ = arg
+            break
+
+      mparser.add_argument(flag, type=type_, default=default, **kws)
 
     for name, param in sig.parameters.items():
       if name == 'self': continue

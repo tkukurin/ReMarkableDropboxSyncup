@@ -77,8 +77,8 @@ class Cli:
       self,
       item: str,
       dir: str = Defaults.PAPERS_DIR,
-      name: str = None,
-      dispatcher: str = None):
+      name: ty.Optional[str] = None,
+      dispatcher: ty.Optional[str] = None):
     """Send given file to dropbox `dir`.
 
     The `item` parameter can be a local directory, pdf, or ArXiv ID.
