@@ -34,6 +34,10 @@ class Defaults:
 
   CONFIG_JSON = Path('~/.tkapikeys.json').expanduser()
 
+  class Local:  # TODO log papers?
+    NOTES_DIR = Path("~/.notes/").expanduser()
+    PAPERS_DIR = NOTES_DIR / "papers"
+
 
 class Alias:
   """Alias to make directory access easier from CLI.
@@ -70,6 +74,12 @@ class Alias:
     return _wrap
 
 
+def _latest_dir(dir: str) -> str:
+  cur = dt.datetime.now()
+  new_name = os.path.join(dir, f"{cur.year}-{cur.month:02d}")
+  return new_name
+
+
 @dcls.dataclass
 class Cli:
   dropbox: api.Dropbox
@@ -80,6 +90,7 @@ class Cli:
     "papers": Defaults.PAPERS_DIR,
     "books": Defaults.BOOKS_DIR,
     "archive": Defaults.ARCHIVE_DIR,
+    "latest": _latest_dir(Defaults.PAPERS_DIR),
   })
 
   @classmethod
@@ -100,12 +111,17 @@ class Cli:
     method = self.alias.wrap(method)
     return method(self, **args)
 
+  def aliases(self):
+    """List of all aliases available."""
+    aliases = "\n".join(f"{k}={v}" for k,v in self.alias._dir_remap.items())
+    print(aliases)
+
   def ls(self, dir: str = Defaults.BOOKS_DIR):
     """List immediate contents of `dir`"""
     print('\n'.join(
       x.path for x in
       self.dropbox.ls(dir).content
-      if x.meta['.tag'] != 'file'
+      # if x.meta['.tag'] != 'file'
     ))
 
   def mv(self, src: str, dst: str):
@@ -147,8 +163,7 @@ class Cli:
         return L.info('Cancelling due to duplicate files: %s', existing)
 
     if dir in (Defaults.PAPERS_DIR,):
-      cur = dt.datetime.now()
-      new_name = os.path.join(dir, f"{cur.year}-{cur.month:02d}")
+      new_name = _latest_dir(dir)
       path = os.path.join(new_name, fname)
       try:
         L.info("Trying to create %s...", new_name)
