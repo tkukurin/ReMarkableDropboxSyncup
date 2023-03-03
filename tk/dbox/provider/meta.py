@@ -89,7 +89,7 @@ class WithHtmlFetcher:
       return attempt
 
     L.warning("None of the heuristics matched, returning raw netloc: %s", url)
-    return url.netloc
+    return url.geturl().removesuffix(".pdf")
 
   def _get_meta(self, html: str) -> CitationMetaExtractor.Response:
     extractor = CitationMetaExtractor()
