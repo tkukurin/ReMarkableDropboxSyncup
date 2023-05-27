@@ -29,7 +29,7 @@ L = logging.getLogger(__name__)
 
 class Defaults:
   BOOKS_DIR = '/books'
-  PAPERS_DIR = '/books/papers'
+  PAPERS_DIR = '/papers'
   ARCHIVE_DIR = '/books/archive'
 
   CONFIG_JSON = Path('~/.tkapikeys.json').expanduser()
@@ -37,10 +37,11 @@ class Defaults:
   class Local:  # TODO log papers?
     NOTES_DIR = Path("~/.notes/").expanduser()
     PAPERS_DIR = NOTES_DIR / "papers"
+    DB = NOTES_DIR / "tracker.sqlite"
 
 
 class Alias:
-  """Alias to make directory access easier from CLI.
+  """Alias to make directory access easier from CLI (cf. `wrap` for details).
   """
 
   def __init__(self, dir_remap: dict[str, str]):
@@ -74,9 +75,15 @@ class Alias:
     return _wrap
 
 
-def _latest_dir(dir: str) -> str:
+def _latest_dir(dir: str, prio: ty.Optional[int] = None) -> str:
+  """Creates dated dir, optionally prioritizing paper as well.
+  """
   cur = dt.datetime.now()
   new_name = os.path.join(dir, f"{cur.year}-{cur.month:02d}")
+  if prio:
+    if prio not in (1, 2, 3):
+      raise ValueError("Come on, limit prio to a few classes")
+    new_name = os.path.join(new_name, str(prio))
   return new_name
 
 
@@ -103,7 +110,7 @@ class Cli:
       _log = L if verbose == 1 else logging.getLogger('')
       _log.setLevel(logging.DEBUG)
     with open(args.pop('cfg')) as f:
-      auth = json.load(f)['dropbox_access_token']
+      auth = json.load(f)['dropbox']['access_token']
     self = cls(
         dropbox=api.Dropbox(auth),
         dropbox_content=api.DropboxContent(auth),
@@ -134,6 +141,7 @@ class Cli:
       self,
       item: str,
       dir: str = Defaults.PAPERS_DIR,
+      prio: ty.Optional[int] = None,
       name: ty.Optional[str] = None,
       dispatcher: ty.Optional[str] = None):
     """Send given file to dropbox `dir`.
@@ -163,7 +171,7 @@ class Cli:
         return L.info('Cancelling due to duplicate files: %s', existing)
 
     if dir in (Defaults.PAPERS_DIR,):
-      new_name = _latest_dir(dir)
+      new_name = _latest_dir(dir, prio)
       path = os.path.join(new_name, fname)
       try:
         L.info("Trying to create %s...", new_name)
