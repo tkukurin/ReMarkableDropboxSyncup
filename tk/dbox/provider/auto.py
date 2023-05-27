@@ -35,9 +35,15 @@ class Dispatcher:
       pdfurl='https://openreview.net/pdf?id={id}',
       absurl='https://openreview.net/forum?id={id}',
     )
+    self._acl = _acl = meta.WithHtmlFetcher(
+      _get,
+      pdfurl='https://aclanthology.org/{id}.pdf',
+      absurl='https://aclanthology.org/{id}/'
+    )
     self.url_matchers = [
       Matcher('arxiv', lambda u: any(x in u for x in ('arxiv', )), _arxiv),
       Matcher('openreview', lambda u: any(x in u for x in ('openreview', )), _review),
+      Matcher('acl', lambda u: any(x in u for x in ('aclanthology', )), _acl),
       Matcher('pdf', lambda u: u.endswith('.pdf'), lambda u: (txtutil.name_from(u), u)),
       Matcher('epub', lambda u: u.endswith('.epub'), lambda u: (txtutil.name_from(u), u)),
     ]

@@ -87,6 +87,9 @@ class WithHtmlFetcher:
       return attempt
     elif attempt := os.path.basename(url.path).removesuffix('.pdf'):
       return attempt
+    # aclanthology: "2022.name.123"
+    elif re.match(r"\d{4}\..*\.\d+", (attempt := url.path.strip("/"))):
+      return attempt
 
     L.warning("None of the heuristics matched, returning raw netloc: %s", url)
     return url.geturl().removesuffix(".pdf")
