@@ -20,7 +20,7 @@ from tk.dbox.provider import auto
 from tk.dbox.utils import cli
 
 from pathlib import Path
-from tk.dbox.provider import meta
+from tk.dbox.provider.meta import CitationMetaExtractor as CME
 
 
 logging.basicConfig(level=logging.INFO)
@@ -92,6 +92,7 @@ class Cli:
   dropbox: api.Dropbox
   dropbox_content: api.DropboxContent
   content_dispatcher: auto.Dispatcher
+  notion: ty.Optional[api.Notion] = None
 
   alias: ty.ClassVar[Alias] = Alias({
     "papers": Defaults.PAPERS_DIR,
@@ -109,12 +110,20 @@ class Cli:
     if verbose := args.pop('verbose'):
       _log = L if verbose == 1 else logging.getLogger('')
       _log.setLevel(logging.DEBUG)
+    notion = None
     with open(args.pop('cfg')) as f:
-      auth = json.load(f)['dropbox']['access_token']
+      authdict = json.load(f)
+      auth = authdict['dropbox']['access_token']
+      if auth_notion := authdict.get('notion'):
+        notion_secret = auth_notion.get('internal_integration_secret')
+        notion_pageid = auth_notion.get('pages', {}).get('remarkable')
+        notion = api.Notion(notion_secret, notion_pageid)
     self = cls(
         dropbox=api.Dropbox(auth),
         dropbox_content=api.DropboxContent(auth),
-        content_dispatcher=auto.Dispatcher())
+        content_dispatcher=auto.Dispatcher(),
+        notion=notion,
+    )
     method = self.alias.wrap(method)
     return method(self, **args)
 
@@ -158,7 +167,11 @@ class Cli:
     if dispatcher is None:
       return L.error('Failed to find dispatcher for: %s', item)
 
+    meta = None
     fname, pdfurl = dispatcher(item)
+    if isinstance(fname, tuple):  # TODO ugly hack
+      fname, meta = fname
+
     if name:
       L.debug('Overwriting %s with %s', fname, name)
       fname = name
@@ -179,6 +192,10 @@ class Cli:
       except:
         L.info("Creating folder %s failed, probably exists", new_name)
 
+    if meta is None:  # TODO
+      L.warning("Meta is none!")
+      meta = CME.Response("", "", "")
+
     L.info('Transfering PDF: %s -> %s', pdfurl, path)
     # NB this is some code smell, make dispatch handle this transparently?
     # Maybe by returning a function reference
@@ -189,6 +206,13 @@ class Cli:
     else:
       response = self.dropbox.save_url(pdfurl, path)
       L.info('Job ID: %s', response.content.get('async_job_id'))
+      response2 = self.notion.add_paper(
+        title=f"[Pub/RM] {meta.title}",
+        url=meta.pdf_url.replace("/pdf/", "/abs/"),
+        abstract=meta.abstract,
+        content=f"Paper by {', '.join(meta.author)} on {meta.date}",
+      )
+      L.info("Added to Notion!")
     return L.info('Server response: %s', response)
 
   def metafix(self):

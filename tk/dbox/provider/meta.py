@@ -21,6 +21,10 @@ class CitationMetaExtractor(HTMLParser):
   class Response(types.WithMetaResponse):
     paper_id: str
     title: str
+    pdf_url: str
+    abstract: str = dcls.field(default="")
+    author: list[str] = dcls.field(default_factory=list)
+    date: str = dcls.field(default="[UNK]")
 
   PREFIX_CITE = 'citation_'
 
@@ -33,6 +37,8 @@ class CitationMetaExtractor(HTMLParser):
     attrs = dict(attrs)
     if (k := attrs.get('name', '')).startswith(self.PREFIX_CITE):
       k = k[len(self.PREFIX_CITE):]
+      if k == "arxiv_id":  # to make auto extraction easier
+        k = "paper_id"
       # Repeating meta tags get represented as lists, others normal strings.
       if v := self.description.get(k):
         if not isinstance(v, list): self.description[k] = [v]
@@ -66,7 +72,7 @@ class WithHtmlFetcher:
       L.warning("Differing IDs found: %s != %s", meta.paper_id, id)
       L.warning("(this will actually happen for e.g. OpenReview, WAI)")
     name = f'{id}_{name}.pdf'
-    return name, self.mk_pdfurl(id)
+    return (name, meta), self.mk_pdfurl(id)
 
   def _get_id(self, id_or_url: str):
     url = urllib.parse.urlparse(id_or_url)

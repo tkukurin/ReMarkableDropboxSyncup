@@ -159,6 +159,97 @@ class DropboxContent(Api):
     return GenericResponse(meta={}, content=response.json())
 
 
+class Notion(Api):
+  # https://developers.notion.com/docs/working-with-page-content
+
+  def __init__(self, secret: str, pageid: str):
+    self.secret = secret
+    # NB, actually we should expect it to be a DB id.
+    self.pageid = pageid
+    super().__init__("https://api.notion.com/v1/{}", {
+      "Authorization": f"Bearer {secret}",
+      # Not sure whether ok to hardcode this ...
+      "Notion-Version": "2022-06-28",
+    })
+
+  def add_paper(self, title: str, url: str, abstract: str, content: str = ""):
+    title = title.replace('\n', ' ').strip()
+    abstract = abstract.replace('\n', ' ').strip()
+    content = content.replace('\n', ' ').strip()
+    response = self.post("pages", json={
+    #response = self.post("pages", json={
+      "parent": { "database_id": self.pageid },
+      # https://developers.notion.com/reference/block
+      "children": [
+        {
+          "object": "block",
+          "type": "paragraph",
+          # https://developers.notion.com/reference/block#block-type-objects
+          "paragraph": {
+            "rich_text": [
+              {
+                "type": "text",
+                "text": {
+                  'content': abstract,
+                  "link": None
+                }
+              }
+            ],
+            "color": "default"
+          }
+        },
+      ],
+
+      "properties": {
+        'Name': {
+          #'id': 'title',
+          'type': 'title',
+          'title': [{'type': 'text',
+            'text': {
+              'content': title,
+              'link': None
+            },
+            'annotations': {'bold': False,
+              'italic': False,
+              'strikethrough': False,
+              'underline': False,
+              'code': False,
+              'color': 'default'},
+            'href': None}]
+        },
+        'Summary': {
+          'type': 'rich_text',
+          'rich_text': [{'type': 'text',
+            'text': {
+              "content": f'[ReMarkable] {content}',
+              'link': None
+            },
+            'annotations': {'bold': False,
+              'italic': False,
+              'strikethrough': False,
+              'underline': False,
+              'code': False,
+              'color': 'default'},
+            'href': None}],
+        },
+        'Source': {
+          'type': 'url',
+          'url': url,
+        },
+      }
+    })
+    return response
+
+  def get_page(self, is_db: bool = True):
+    prefix = "databases" if is_db else "pages"
+    response = self.get(prefix, page_id,)
+    return response
+
+  def get_blocks(self):
+    response = self.get("blocks", page_id)
+    return response
+
+
 class Dropbox(Api):
 
   @staticmethod
