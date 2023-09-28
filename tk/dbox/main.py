@@ -200,7 +200,7 @@ class Cli:
       elif response == 'm':  # move
         if len(existing) != 1: return L.error("Needs to have 1 match")
         src = existing[0].path_display
-        dst = os.path.join(new_name, existing[0].name))
+        dst = os.path.join(new_name, existing[0].name)
         if (response := cli.prompt(f'Moving: {src}->{dst}. Continue?', 'yn')) == 'n':
           return L.info('Cancelling...')
         response = self.dropbox.mv(src, dst)
