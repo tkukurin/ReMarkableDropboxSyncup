@@ -152,7 +152,9 @@ class Cli:
       dir: str = Defaults.PAPERS_DIR,
       prio: ty.Optional[int] = None,
       name: ty.Optional[str] = None,
-      dispatcher: ty.Optional[str] = None):
+      dispatcher: ty.Optional[str] = None,
+      meta: ty.List[str] = None,
+  ):
     """Send given file to dropbox `dir`.
 
     The `item` parameter can be a local directory, pdf, or ArXiv ID.
@@ -167,21 +169,18 @@ class Cli:
     if dispatcher is None:
       return L.error('Failed to find dispatcher for: %s', item)
 
-    meta = None
     fname, pdfurl = dispatcher(item)
-    if isinstance(fname, tuple):  # TODO ugly hack
+    if meta is not None:  # TODO ugly hack
+      if isinstance(fname, tuple):
+        fname = fname[0]
+      meta = CME.Response(**dict(part.split('=') for part in meta))
+    elif isinstance(fname, tuple):
       fname, meta = fname
 
     if name:
       L.debug('Overwriting %s with %s', fname, name)
       fname = name
     path = os.path.join(dir, fname)
-
-    # check for existing files, allow user to bail
-    if existing := self.dropbox.search(fname, file_extensions=['pdf']).content:
-      existing = [x.name for x in existing]
-      if (response := cli.prompt(f'Found: {existing}. Continue?', 'yn')) == 'n':
-        return L.info('Cancelling due to duplicate files: %s', existing)
 
     if dir in (Defaults.PAPERS_DIR,):
       new_name = _latest_dir(dir, prio)
@@ -192,9 +191,24 @@ class Cli:
       except:
         L.info("Creating folder %s failed, probably exists", new_name)
 
+    # check for existing files, allow user to bail
+    if existing := self.dropbox.search(fname, file_extensions=['pdf']).content:
+      names = [x.name for x in existing]
+      fmt = "\n- ".join(names[:10]) + ("\n- ..." if len(existing) > 10 else "")
+      if (response := cli.prompt(f'Found: {fmt}. Continue?', 'ymn')) == 'n':
+        return L.info('Cancelling due to duplicate files:\n- %s', fmt)
+      elif response == 'm':  # move
+        if len(existing) != 1: return L.error("Needs to have 1 match")
+        src = existing[0].path_display
+        dst = os.path.join(new_name, existing[0].name))
+        if (response := cli.prompt(f'Moving: {src}->{dst}. Continue?', 'yn')) == 'n':
+          return L.info('Cancelling...')
+        response = self.dropbox.mv(src, dst)
+        return L.info("Server response: %s", response)
+
     if meta is None:  # TODO
       L.warning("Meta is none!")
-      meta = CME.Response("", "", "")
+      meta = CME.Response(meta={}, title=fname, pdf_url=pdfurl)
 
     L.info('Transfering PDF: %s -> %s', pdfurl, path)
     # NB this is some code smell, make dispatch handle this transparently?
@@ -212,7 +226,7 @@ class Cli:
         abstract=meta.abstract,
         content=f"Paper by {', '.join(meta.author)} on {meta.date}",
       )
-      L.info("Added to Notion!")
+      L.info("Added to Notion! %s", response2)
     return L.info('Server response: %s', response)
 
   def metafix(self):
