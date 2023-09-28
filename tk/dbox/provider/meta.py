@@ -19,9 +19,9 @@ class CitationMetaExtractor(HTMLParser):
 
   @dcls.dataclass
   class Response(types.WithMetaResponse):
-    paper_id: str
     title: str
-    pdf_url: str
+    paper_id: str = dcls.field(default="")
+    pdf_url: str = dcls.field(default="")
     abstract: str = dcls.field(default="")
     author: list[str] = dcls.field(default_factory=list)
     date: str = dcls.field(default="[UNK]")
