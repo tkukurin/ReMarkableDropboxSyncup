@@ -8,7 +8,8 @@ Hacky and barely tested.
 
 ## Install
 
-Just a dev app with zero dependencies. Run `make install` from the root folder.
+Just a dev app.
+Run `make install` from the root folder.
 Add a `~/.tkapikeys.json` [access token](https://www.dropbox.com/developers/apps/info/):
 ```json
 { "dropbox": { "access_token": "access_token_from_app_console" } }
@@ -29,4 +30,14 @@ Optionally, the api keys file can contain a Notion dependency:
 
 Then the app is runnable from the command line via `tkdbox`.
 Set alternate config path using `tkdbox --cfg [my_path]`.
+
+Recommended to install to venv and symlink:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+make install
+ln -s /path/to/.venv/bin/tkdbox ~/.local/bin/tkdbox
+```
+
+Or use [`pipx install`](https://pypa.github.io/pipx/).
 
