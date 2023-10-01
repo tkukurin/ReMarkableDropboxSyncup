@@ -220,13 +220,14 @@ class Cli:
     else:
       response = self.dropbox.save_url(pdfurl, path)
       L.info('Job ID: %s', response.content.get('async_job_id'))
-      response2 = self.notion.add_paper(
-        title=f"[Pub/RM] {meta.title}",
-        url=meta.pdf_url.replace("/pdf/", "/abs/"),
-        abstract=meta.abstract,
-        content=f"Paper by {', '.join(meta.author)} on {meta.date}",
-      )
-      L.info("Added to Notion! %s", response2)
+
+    response_notion = self.notion.add_paper(
+      title=f"[Pub/RM] {meta.title}",
+      url=meta.pdf_url.replace("/pdf/", "/abs/"),
+      abstract=meta.abstract,
+      content=f"Paper by {', '.join(meta.author)} on {meta.date}",
+    )
+    L.info("Added to Notion! %s", response_notion)
     return L.info('Server response: %s', response)
 
   def metafix(self):
