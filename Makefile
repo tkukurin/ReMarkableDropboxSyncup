@@ -1,11 +1,12 @@
 
+PY ?= python
+
 test:
-	# Let me print out things if necessary
-	PYTHONPATH=. pytest tests/ --capture=no
+	PYTHONPATH=. $(PY) -m pytest tests/ --capture=no
 
 lint:
-	PYTHONPATH=. pylint tk/
+	PYTHONPATH=. $(PY) -m pylint tk/
 
 install:
-	pip install -e .
+	$(PY) -m pip install -e .
 
