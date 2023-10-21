@@ -113,7 +113,12 @@ class Cli:
     notion = None
     with open(args.pop('cfg')) as f:
       authdict = json.load(f)
-      auth = authdict['dropbox']['access_token']
+
+      dbox = authdict['dropbox']
+      if not (auth := dbox.get('access_token')):
+          import copy
+          auth = copy.deepcopy(dbox)
+
       if auth_notion := authdict.get('notion'):
         notion_secret = auth_notion.get('internal_integration_secret')
         notion_pageid = auth_notion.get('pages', {}).get('remarkable')

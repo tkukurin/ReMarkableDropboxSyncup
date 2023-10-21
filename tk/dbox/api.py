@@ -55,6 +55,16 @@ class FileResponse(WithMetaResponse):
       setattr(self, 'server_modified', dt.strptime(lm, '%Y-%m-%dT%H:%M:%SZ'))
 
 
+
+
+import http.server
+import socketserver
+import webbrowser
+import urllib.parse as urlparse
+from urllib.parse import parse_qs
+import threading
+
+
 class Api:
 
   ResponseType = ty.Type[requests.Response | dict | str]
@@ -62,7 +72,12 @@ class Api:
   def __init__(self, base: str, auth: dict):
     """Format `base` s.t. `{}` is where the modifiable part of the API comes."""
     self.base = base
-    self.auth = auth
+    self.auth_headers = {}
+    self.auth = None
+    if (u := auth.get('username')) and (p := auth.get('password')):
+        self.auth = requests.auth.HTTPBasicAuth(u, p)
+    else:
+        self.auth_headers = auth
 
   def url(self, *path: str):
     return self.base.format('/'.join(path))
@@ -77,7 +92,7 @@ class Api:
 
   def get(self, *path: str, T: ResponseType = dict) -> T:
     url = self.url(*path)
-    response = requests.get(url, headers=self.auth)
+    response = requests.get(url, headers=self.auth_headers, auth=self.auth)
     if not response.ok:
       L.error('Failed: %s', response.status_code)
       raise Exception(response.text)
@@ -85,7 +100,8 @@ class Api:
 
   def post(self, *path: str, json=None, headers=None, T: ResponseType = dict) -> T:
     url = self.url(*path)
-    response = requests.post(url, json=json, headers={**self.auth, **(headers or {})})
+    headers = {**self.auth_headers, **(headers or {})}
+    response = requests.post(url, json=json, headers=headers, auth=self.auth)
     if not response.ok:
       L.error('Failed: %s', response.status_code)
       raise Exception(response.text)
@@ -143,7 +159,7 @@ class DropboxContent(Api):
     url = self.url('files', 'upload')
     response = requests.post(
       url, data=fp.read(), headers={
-        **self.auth,
+        **self.auth_headers,
         'Content-Type': 'application/octet-stream',
         'Dropbox-API-Arg': json.dumps({
           'path': _pathnorm(path),
@@ -257,9 +273,82 @@ class Dropbox(Api):
     key = base64.b64encode(f'{key}:{secret}'.encode('utf8'))
     return dict(Authorization=f'Bearer {key}')
 
-  def __init__(self, auth_headers: ty.Union[str, dict]):
+  def auth(self, client_id: str, client_secret: str, **kwargs) -> str:
+    """Some hacky way to get authorization via local oauth2 flow.
+
+    TODO integrate refresh tokens et al.
+    """
+    if kwargs:
+      L.warning("Unexpected: %s", kwargs)
+    authorization_endpoint = "https://www.dropbox.com/oauth2/authorize"
+    redirect_uri = 'http://localhost:8000'
+    code = None
+
+    class Handler(http.server.SimpleHTTPRequestHandler):
+
+      def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+
+        query_components = parse_qs(urlparse.urlparse(self.path).query)
+        if local_code := query_components.get('code'):
+          nonlocal code
+          code = local_code[0]
+          self.wfile.write(bytes(f'Access Token: {code}', 'utf-8'))
+          return
+
+        # NB, if you don't set redirect_uri the user can manually c/p the token.
+        # Set redirect_uri in https://www.dropbox.com/developers/apps/
+        # "{authorization_endpoint}?client_id={client_id}&response_type=token&redirect_uri={redirect_uri}";
+        # response_type can be token or code
+        self.wfile.write(bytes(f'''
+        <html>
+          <script>
+            window.location.href =
+            "{authorization_endpoint}?token_access_type=offline&client_id={client_id}&response_type=code&redirect_uri={redirect_uri}";
+          </script>
+        </html>
+        ''', 'utf-8'))
+
+    webbrowser.open('http://localhost:8000')
+    httpd = socketserver.TCPServer(('localhost', 8000), Handler)
+    while code is None:  # note the ugly hack, not even sure it'll always work
+      httpd.handle_request()
+
+    token_url = 'https://api.dropbox.com/oauth2/token'
+    response = requests.post(token_url, data={
+        'code': code,
+        'grant_type': 'authorization_code',
+        'redirect_uri': redirect_uri,
+        'client_id': client_id,
+        'client_secret': client_secret,
+    })
+    json = response.json()
+
+    # other outputs:
+    # access_token String The access token to be used to call the Dropbox API.
+    # expires_in Integer The length of time in seconds that the access token will be valid for.
+    # token_type String Will always be bearer.
+    # scope String The permission set applied to the token.
+    # account_id String An API v2 account ID if this OAuth 2 flow is user-linked.
+    # team_id String An API v2 team ID if this OAuth 2 flow is team-linked.
+    # refresh_token String If the token_access_type was set to offline when
+    # calling /oauth2/authorize, then response will include a refresh token.
+    # This refresh token is long-lived and won't expire automatically. It can be
+    # stored and re-used multiple times.
+    # id_token String If the request includes OIDC scopes and is completed in
+    # the response_type=code flow, then the payload will include an id_token
+    # which is a JWT token.
+    # uid String The API v1 identifier value. It is deprecated and should no
+    # longer be used.
+    return json["access_token"]
+
+  def __init__(self, auth_headers: ty.Union[str, dict, tuple]):
     if isinstance(auth_headers, str):
       auth_headers = {'Authorization': f'Bearer {auth_headers}'}
+    else:
+      tok = self.auth(**auth_headers)
+      auth_headers = {'Authorization': f'Bearer {tok}'}
     super().__init__('https://api.dropboxapi.com/2/{}', auth_headers)
 
   def _exhaust(
