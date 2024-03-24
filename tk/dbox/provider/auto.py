@@ -47,9 +47,11 @@ class Dispatcher:
       Matcher('pdf', lambda u: u.endswith('.pdf'), lambda u: (txtutil.name_from(u), u)),
       Matcher('epub', lambda u: u.endswith('.epub'), lambda u: (txtutil.name_from(u), u)),
     ]
+    _norm = lambda s: s.removeprefix('file://')
+    _exists = lambda f: os.path.exists(_norm(f))
     self.nonurl_matchers = [
       Matcher('arxiv', meta.maybe_id, _arxiv),
-      Matcher('local', lambda f: os.path.exists(f), lambda u: (os.path.basename(u), u)),
+      Matcher('local', _exists, lambda u: (os.path.basename(u), _norm(u))),
     ]
 
   def by_name(self, name: str) -> ty.Generator[ty.Optional[UrlToUploadable], None, None]:
