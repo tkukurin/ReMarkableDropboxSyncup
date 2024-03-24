@@ -179,6 +179,14 @@ class Cli:
 
     if name:
       L.debug('Overwriting %s with %s', fname, name)
+      _, suf1 = os.path.splitext(fname)
+      _, suf2 = os.path.splitext(name)
+      if not suf2:
+        name = name + (suf1 if suf1 else '.pdf')
+        L.info("Renamed (suffix): %s to %s", suf2, name)
+      elif suf1 != suf2:
+        if cli.prompt(f"Suffix diff: {suf1} != {suf2}. Ok?", 'yn') == 'n':
+          return L.info("Cancelling")
       fname = name
     path = os.path.join(dir, fname)
 
@@ -195,7 +203,7 @@ class Cli:
     if existing := self.dropbox.search(fname, file_extensions=['pdf']).content:
       names = [x.name for x in existing]
       fmt = "\n- ".join(names[:10]) + ("\n- ..." if len(existing) > 10 else "")
-      if (response := cli.prompt(f'Found: {fmt}. Continue?', 'ymn')) == 'n':
+      if (response := cli.prompt(f'Found:\n- {fmt}. Continue?', 'ymn')) == 'n':
         return L.info('Cancelling due to duplicate files:\n- %s', fmt)
       elif response == 'm':  # move
         if len(existing) != 1: return L.error("Needs to have 1 match")
